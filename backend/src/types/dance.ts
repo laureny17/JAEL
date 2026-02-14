@@ -11,7 +11,7 @@ export type LyricResult = {
 
 export type SunoTrackResult = {
   trackId: string;
-  status: "queued" | "processing" | "ready";
+  status: "submitted" | "queued" | "streaming" | "complete" | "error";
   audioUrl?: string;
   bpm?: number;
 };

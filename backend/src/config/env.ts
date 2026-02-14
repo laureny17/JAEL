@@ -13,5 +13,5 @@ export const env = {
   port: Number(process.env.PORT ?? 4001),
   anthropicApiKey: process.env.ANTHROPIC_API_KEY as string,
   sunoApiKey: process.env.SUNO_API_KEY as string,
-  sunoApiBaseUrl: process.env.SUNO_API_BASE_URL ?? "https://api.suno.ai"
+  sunoApiBaseUrl: process.env.SUNO_API_BASE_URL ?? "https://studio-api.prod.suno.com/api/v2/external/hackathons/"
 };

@@ -13,5 +13,5 @@ app.get("/health", (req, res) => {
 });
 
 app.listen(env.port, () => {
-  console.log(`Backend2 server running on port ${env.port}`);
+  console.log(`Backend server running on port ${env.port}`);
 });
