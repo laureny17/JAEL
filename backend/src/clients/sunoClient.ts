@@ -60,11 +60,11 @@ export async function createSunoTrackFromLyrics(
   };
 }
 
-// Function to poll for track status and get audio URL
+// polling for status
 export async function getSunoTrackStatus(trackId: string): Promise<SunoTrackResult> {
-  const url = `${env.sunoApiBaseUrl}clips?ids=${trackId}`;
-  console.log(`Polling Suno API: ${url}`);
-  console.log(`Track ID: ${trackId}`);
+  // 1. Ensure slash safety
+  const baseUrl = env.sunoApiBaseUrl.endsWith('/') ? env.sunoApiBaseUrl : `${env.sunoApiBaseUrl}/`;
+  const url = `${baseUrl}clips?ids=${trackId}`;
 
   const response = await fetch(url, {
     headers: {
@@ -72,33 +72,27 @@ export async function getSunoTrackStatus(trackId: string): Promise<SunoTrackResu
     }
   });
 
-  console.log(`Response status: ${response.status}`);
-
   if (!response.ok) {
     const body = await response.text();
-    console.log(`Error response body: ${body}`);
-    throw new Error(`Suno clips request failed: ${response.status} ${body}`);
+    throw new Error(`Suno API error (${response.status}): ${body}`);
   }
 
-  const clips = (await response.json()) as Array<{
-    id: string;
-    status: string;
-    title?: string;
-    audio_url?: string;
-    metadata?: {
-      duration?: number;
-    };
-  }>;
+  const clips = await response.json();
+
+  // 2. Defensive check for the array
+  if (!Array.isArray(clips) || clips.length === 0) {
+    throw new Error(`Suno returned an empty result for track ${trackId}`);
+  }
 
   const clip = clips[0];
-  if (!clip) {
-    throw new Error(`Clip ${trackId} not found`);
-  }
+
+  // 3. Status mapping with fallback
+  // Suno sometimes uses 'processing' or 'queued' - let's be safe
+  const currentStatus = clip.status as SunoTrackResult["status"];
 
   return {
     trackId: clip.id,
-    status: clip.status as "submitted" | "queued" | "streaming" | "complete" | "error",
-    audioUrl: clip.audio_url,
-    bpm: undefined // Suno API doesn't provide BPM in the response
+    status: currentStatus,
+    audioUrl: clip.audio_url || undefined, // API might return empty string initially
   };
 }

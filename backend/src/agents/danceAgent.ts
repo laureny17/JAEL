@@ -2,7 +2,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import fs from "fs";
 import path from "path";
 import { env } from "../config/env.js";
-import { createSunoTrackFromLyrics } from "../clients/sunoClient.js";
+import { createSunoTrackFromLyrics, getSunoTrackStatus } from "../clients/sunoClient.js";
 import type { DanceWorkflowResult, LyricResult } from "../types/dance.js";
 import { danceSystemPrompt } from "../prompts/danceSystemPrompt.js";
 
@@ -97,18 +97,54 @@ ${mood ? `Mood: ${mood}\n` : ''}${genre ? `Genre: ${genre}\n` : ''}`;
 
   console.log(`✅ Music generation ${track.status}`);
   console.log(`Track ID: ${track.trackId}`);
-  console.log(`\n📀 Track Info:`);
-  console.log(`Status: ${track.status}`);
-  if (track.audioUrl) {
-    console.log(`Audio URL: ${track.audioUrl}`);
+
+  // --- START POLLING ---
+  console.log(`\n⏳ Polling for completion (this may take 1-2 minutes)...`);
+
+  const maxAttempts = 40; // Approx 3-4 minutes max
+  let attempts = 0;
+  let isReady = false;
+  let finalClipData: any = null;
+
+  while (attempts < maxAttempts) {
+    // Wait 5 seconds between checks to avoid rate limits
+    await new Promise(resolve => setTimeout(resolve, 5000));
+
+    try {
+      finalClipData = await getSunoTrackStatus(track.trackId);
+      attempts++;
+
+      // Provide visual feedback in the console
+      process.stdout.write(`\r   Status: ${finalClipData.status}, Audio URL: ${finalClipData.audio_url || 'N/A'} (Attempt ${attempts})... `);
+
+      // "streaming" means we have a URL and can play it now!
+      // "complete" means the high-quality MP3 is ready.
+      if (finalClipData.status === "complete") {
+        isReady = true;
+        break;
+      }
+
+    } catch (pollError) {
+      console.error(`\n⚠️ Polling attempt ${attempts} failed:`, pollError);
+      // We don't exit here, just try again in the next loop
+    }
   }
-  console.log(`\nNote: Track is being generated. Use the track ID to check status later.`);
+
+  if (!isReady || !finalClipData) {
+    throw new Error("\n❌ Music generation timed out.");
+  }
+
+  console.log(`\n📀 Track Info:`);
+  console.log(`Status: ${finalClipData.status}`);
+  if (finalClipData.audio_url) {
+    console.log(`Audio URL: ${finalClipData.audio_url}`);
+  }
   console.log();
 
   // Step 3: Return the complete workflow result
   const result: DanceWorkflowResult = {
     lyrics,
-    track
+    track: finalClipData
   };
 
   return result;
