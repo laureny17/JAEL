@@ -130,7 +130,6 @@ ${mood ? `Mood: ${mood}\n` : ''}${genre ? `Genre: ${genre}\n` : ''}`;
   console.log("\n💃 Step 5: Generating 3D animation poses with Claude...");
   const prompt = poseGenerationPrompt(fragmentTimestamps);
   const poses = await generatePoses(prompt);
-  song.poses = poses;
   console.log(`✅ Generated ${poses.length} poses`);
   console.log("Sample pose:", poses[0]);
 
@@ -161,7 +160,6 @@ ${mood ? `Mood: ${mood}\n` : ''}${genre ? `Genre: ${genre}\n` : ''}`;
   const song: DanceSong = {
     lyrics,
     track: finalClipData,
-    fragmentTimestamps,
     poses,
   };
 

@@ -39,7 +39,7 @@ export const generateMusicTool = tool(
   },
   async (args) => {
     try {
-      const track = await createSunoTrackFromLyrics(args.lyrics, args.genre);
+      const track = await createSunoTrackFromLyrics(args.lyrics, 60, args.genre);
       return {
         content: [{
           type: "text" as const,

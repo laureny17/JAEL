@@ -21,7 +21,15 @@ type PipelineResult = {
   };
   poses?: PoseSequence;
   poseSequence?: PoseSequence;
-  fragmentTimestamps?: Record<string, number>;
+};
+
+type SongDetailResponse = {
+  song?: PipelineResult & {
+    id: string;
+    prompt?: string;
+    title?: string;
+    lengthSeconds?: number;
+  };
 };
 
 function PosePlayer({ sequence, paused }: { sequence: PoseSequence; paused: boolean }) {
@@ -73,7 +81,6 @@ export default function Play() {
   const [leftArrows, setLeftArrows] = useState<ArrowSequence>([]);
   const [arrowDuration, setArrowDuration] = useState(1);
   const [lyrics, setLyrics] = useState<string[]>([]);
-  const [fragmentTimeline, setFragmentTimeline] = useState<Array<{ line: string; time: number }>>([]);
   const searchParams = useSearchParams();
   const router = useRouter();
   const score = useGameStore((s) => s.score);
@@ -81,17 +88,11 @@ export default function Play() {
   const songId = searchParams.get('songId');
 
   const currentLine = useMemo(() => {
-    if (fragmentTimeline.length === 0) return 0;
-    let idx = 0;
-    for (let i = 0; i < fragmentTimeline.length; i++) {
-      if (fragmentTimeline[i].time <= currentTime) {
-        idx = i;
-      } else {
-        break;
-      }
-    }
-    return idx;
-  }, [fragmentTimeline, currentTime]);
+    if (lyrics.length === 0) return 0;
+    if (arrowDuration <= 0) return 0;
+    const progress = Math.min(0.999, Math.max(0, currentTime / arrowDuration));
+    return Math.min(lyrics.length - 1, Math.floor(progress * lyrics.length));
+  }, [lyrics, currentTime, arrowDuration]);
 
   useEffect(() => {
     let cancelled = false;
@@ -109,27 +110,9 @@ export default function Play() {
       setPipelineError(null);
 
       try {
-        const songsResponse = await fetch('/api/songs');
-        if (!songsResponse.ok) {
-          throw new Error(`Could not load songs (${songsResponse.status}).`);
-        }
-
-        const songsJson = await songsResponse.json();
-        const songs = Array.isArray(songsJson?.songs) ? songsJson.songs : [];
-        const selectedSong = songs.find((song: { id: string }) => song.id === songId);
-
-        if (!selectedSong || typeof selectedSong.prompt !== 'string') {
-          throw new Error('Could not find the selected song prompt.');
-        }
-
-        const danceResponse = await fetch('/api/dance/create', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ topic: selectedSong.prompt }),
-        });
-
-        if (!danceResponse.ok) {
-          const errorText = await danceResponse.text();
+        const songResponse = await fetch(`/api/songs/${songId}`, { cache: 'no-store' });
+        if (!songResponse.ok) {
+          const errorText = await songResponse.text();
           let backendMessage = '';
           try {
             const parsed = JSON.parse(errorText) as { error?: string };
@@ -137,11 +120,11 @@ export default function Play() {
           } catch {
             backendMessage = errorText;
           }
-          throw new Error(backendMessage || `Pipeline request failed (${danceResponse.status}).`);
+          throw new Error(backendMessage || `Could not load song (${songResponse.status}).`);
         }
 
-        const danceJson = await danceResponse.json();
-        const data: PipelineResult = danceJson?.data ?? {};
+        const songJson = (await songResponse.json()) as SongDetailResponse;
+        const data: PipelineResult = songJson?.song ?? {};
 
         const nextSequence = Array.isArray(data.poses)
           ? data.poses
@@ -150,22 +133,14 @@ export default function Play() {
             : [];
 
         if (nextSequence.length === 0) {
-          throw new Error('Pipeline completed but returned no poses.');
+          throw new Error('This song has no saved choreography yet.');
         }
 
         const nextRightArrows = buildFootArrows(nextSequence, 'rightFoot');
         const nextLeftArrows = buildFootArrows(nextSequence, 'leftFoot');
         const nextDuration = Math.max(1, Math.ceil(nextSequence[nextSequence.length - 1]?.time ?? 1));
 
-        const fragments = data.fragmentTimestamps ?? {};
-        const fragmentEntries = Object.entries(fragments)
-          .filter((entry): entry is [string, number] => typeof entry[1] === 'number')
-          .sort((a, b) => a[1] - b[1])
-          .map(([line, time]) => ({ line, time }));
-
-        const lyricLines = fragmentEntries.length > 0
-          ? fragmentEntries.map((entry) => entry.line)
-          : toLyricLines(data.lyrics?.lyrics);
+        const lyricLines = toLyricLines(data.lyrics?.lyrics);
 
         if (!cancelled) {
           setSequence(nextSequence);
@@ -175,7 +150,6 @@ export default function Play() {
           setSecondsLeft(nextDuration);
           setShowEnd(false);
           setPaused(false);
-          setFragmentTimeline(fragmentEntries);
           setLyrics(lyricLines);
         }
       } catch (error) {
@@ -303,7 +277,7 @@ export default function Play() {
           style={{ backgroundColor: 'rgba(70, 44, 45, 0.6)' }}
         >
           <div className="text-sm" style={{ color: '#f8f4f2' }}>
-            Building level from pipeline output...
+            Loading saved level...
           </div>
         </div>
       )}

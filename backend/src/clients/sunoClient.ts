@@ -27,6 +27,12 @@ type SunoGenerateResponse = {
   };
 };
 
+const RETRYABLE_STATUS = new Set([429, 500, 502, 503, 504]);
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 function buildSunoUrl(endpoint: string): string {
   const baseUrl = env.sunoApiBaseUrl.endsWith("/") ? env.sunoApiBaseUrl : `${env.sunoApiBaseUrl}/`;
   return `${baseUrl}${endpoint}`;
@@ -43,31 +49,62 @@ export async function createSunoTrackFromLyrics(
     : "";
 
   // Step 1: Generate the track using Suno API
+  const tags = genre?.trim();
+
   const payload: SunoGeneratePayload = {
     prompt: `${lyrics.lyrics}${audienceSuffix}`,
-    tags: `${genre || ''}, length:${length} seconds`
+    tags: tags || undefined,
   };
 
   console.log("Calling Suno API with payload:", JSON.stringify(payload, null, 2));
 
   const generateUrl = buildSunoUrl("generate");
   console.log(`Suno generate URL: ${generateUrl}`);
+  const maxAttempts = 4;
+  let lastErrorMessage = "Suno request failed for unknown reason";
+  let data: SunoGenerateResponse | null = null;
 
-  const response = await fetch(generateUrl, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${env.sunoApiKey}`
-    },
-    body: JSON.stringify(payload)
-  });
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      const response = await fetch(generateUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${env.sunoApiKey}`
+        },
+        body: JSON.stringify(payload)
+      });
 
-  if (!response.ok) {
-    const body = await response.text();
-    throw new Error(`Suno request failed: ${response.status} ${body}`);
+      if (response.ok) {
+        data = (await response.json()) as SunoGenerateResponse;
+        break;
+      }
+
+      const body = await response.text();
+      lastErrorMessage = `Suno request failed: ${response.status} ${body}`;
+
+      if (!RETRYABLE_STATUS.has(response.status) || attempt === maxAttempts) {
+        throw new Error(lastErrorMessage);
+      }
+
+      const delayMs = 1000 * Math.pow(2, attempt - 1);
+      console.warn(`⚠️ Suno returned ${response.status}. Retrying in ${delayMs}ms (attempt ${attempt}/${maxAttempts})...`);
+      await sleep(delayMs);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      lastErrorMessage = message;
+      if (attempt === maxAttempts) {
+        throw new Error(lastErrorMessage);
+      }
+      const delayMs = 1000 * Math.pow(2, attempt - 1);
+      console.warn(`⚠️ Suno request error. Retrying in ${delayMs}ms (attempt ${attempt}/${maxAttempts})...`, message);
+      await sleep(delayMs);
+    }
   }
 
-  const data = (await response.json()) as SunoGenerateResponse;
+  if (!data) {
+    throw new Error(lastErrorMessage);
+  }
 
   console.log(`✅ Track submitted to Suno. ID: ${data.id}`);
   console.log(`Status: ${data.status}`);
