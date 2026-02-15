@@ -25,6 +25,23 @@ function extractJsonObject(rawText: string): string {
 }
 
 /**
+ * Extract JSON array from Claude's response text
+ */
+function extractJsonArray(rawText: string): string {
+  const trimmed = rawText.trim();
+  if (trimmed.startsWith("```")) {
+    return trimmed.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
+  }
+
+  const jsonMatch = rawText.match(/(\[[\s\S]*\])/);
+  if (!jsonMatch) {
+    throw new Error("Failed to parse JSON array from Claude response");
+  }
+
+  return jsonMatch[0];
+}
+
+/**
  * Generate song lyrics using Claude
  */
 export async function generateLyrics(
@@ -79,39 +96,142 @@ Return ONLY a JSON object with this exact format (no markdown, no extra text):
  */
 export async function groupLyricsIntoFragments(
   wordTimestamps: Array<{ word: string; start: number; end: number }>
-): Promise<Array<{ text: string; start: number }>> {
+): Promise<Record<string, number>> {
+  const prompt = `You are analyzing a song transcription with word-level timestamps. Break the lyrics into semantically meaningful fragments that are roughly 2 beats long each, and map each fragment to the timestamp of its first word.
 
-  // Format the words into a dense string to save tokens
-  const wordsInput = wordTimestamps
-    .map((w) => `[${w.start.toFixed(2)}]${w.word}`)
-    .join(" ");
+Word Timestamps from Whisper:
+${wordTimestamps.map((w, i) => `[${i}] ${w.start.toFixed(2)}s: "${w.word}"`).join('\n')}
 
-  const prompt = `You are a rhythm game level designer. I have a list of words with [timestamps].
-Group them into logical phrases (approx 2-4 words each) that feel like "natural" dance steps.
+Task:
+1) Group the words into semantically meaningful lyric fragments (roughly 2 beats each)
+2) Each fragment should be a complete phrase or meaningful unit
+3) For each fragment, provide the timestamp of its FIRST WORD
+4) Keep fragments in sequential order
 
-Input: ${wordsInput}
-
-Rules:
-1. Every single word from the input must be included in the segments.
-2. Use the exact [timestamp] provided for the FIRST word of each segment.
-3. Return a JSON array of objects.
-
-Output Format:
+Return ONLY valid JSON with this exact shape:
 {
-  "segments": [
-    { "text": "Open up the curtain", "start": 5.64 },
-    { "text": "set the scene tonight", "start": 7.96 }
-  ]
+  "fragmentTimestamps": {
+    "lyric fragment text": timestamp_in_seconds,
+    "next fragment text": timestamp_in_seconds
+  }
+}
+
+Example:
+{
+  "fragmentTimestamps": {
+    "Open up the curtain": 5.64,
+    "set the scene tonight": 7.96,
+    "Exposition baby": 10.2,
+    "everything feels right": 12.5
+  }
 }`;
 
   const response = await anthropic.messages.create({
-    model: "claude-opus-4-6", // Using 3.5 Sonnet is often faster/better for JSON than Opus
-    max_tokens: 4000,
-    messages: [{ role: "user", content: prompt }],
+    model: "claude-opus-4-6",
+    max_tokens: 3000,
+    messages: [
+      {
+        role: "user",
+        content: prompt,
+      },
+    ],
   });
 
   const responseText = response.content[0]?.type === "text" ? response.content[0].text : "";
-  const parsed = JSON.parse(extractJsonObject(responseText));
+  const parsed = JSON.parse(extractJsonObject(responseText)) as { fragmentTimestamps: Record<string, number> };
 
-  return parsed.segments; // returns Array<{text: string, start: number}>
+  console.log("Claude lyric fragment response:", JSON.stringify(parsed, null, 2));
+
+  if (!parsed.fragmentTimestamps || typeof parsed.fragmentTimestamps !== 'object') {
+    throw new Error("Claude fragment output is missing fragmentTimestamps object");
+  }
+
+  return parsed.fragmentTimestamps;
+}
+
+/**
+ * Manual stack-based JSON healer to fix truncated or malformed LLM responses
+ */
+function robustJSONHealer(raw: string): string {
+  // 1. Clean up markdown noise and whitespace
+  let str = raw.replace(/```json|```/g, "").trim();
+
+  // 2. Locate the start of the JSON array
+  const firstBracket = str.indexOf('[');
+  if (firstBracket === -1) return "[]";
+  str = str.substring(firstBracket);
+
+  // 3. Track nested structures to find the truncation point
+  const stack: string[] = [];
+  let lastCompleteObjectEnd = -1;
+
+  for (let i = 0; i < str.length; i++) {
+    const char = str[i];
+    if (char === '{') stack.push('}');
+    else if (char === '[') stack.push(']');
+    else if (char === '}' || char === ']') {
+      if (stack.length > 0 && stack[stack.length - 1] === char) {
+        stack.pop();
+        // If we just closed an object that is part of the main array
+        if (stack.length === 1 && stack[0] === ']') {
+          lastCompleteObjectEnd = i;
+        }
+      }
+    }
+  }
+
+  // 4. If the stack isn't empty, we are truncated.
+  // Slice to the end of the last valid object and close the array.
+  if (stack.length > 0 && lastCompleteObjectEnd !== -1) {
+    return str.substring(0, lastCompleteObjectEnd + 1) + ']';
+  }
+
+  return str;
+}
+
+/**
+ * Generate 3D animation poses from lyric fragments
+ */
+export async function generatePoses(prompt: string): Promise<Array<any>> {
+  const response = await anthropic.messages.create({
+    model: "claude-opus-4-6", // Switched to Sonnet for better reliability/speed
+    max_tokens: 8192,
+    messages: [
+      {
+        role: "user",
+        content: prompt,
+      },
+    ],
+  });
+
+  const responseText = response.content[0]?.type === "text" ? response.content[0].text : "";
+
+  let poses: any[];
+  try {
+    // Attempt standard parse first
+    poses = JSON.parse(responseText);
+  } catch (error) {
+    console.warn("⚠️ Initial JSON parse failed. Attempting robust healing...");
+    try {
+      const healedJson = robustJSONHealer(responseText);
+      poses = JSON.parse(healedJson);
+      console.log("🛠️ JSON successfully healed using stack-based recovery.");
+    } catch (repairError) {
+      console.error("❌ Critical: Could not heal JSON output.");
+      throw new Error(`Failed to parse choreography: ${repairError instanceof Error ? repairError.message : String(repairError)}`);
+    }
+  }
+
+  // Final Validation: Ensure we have an array and filter out partial objects
+  if (!Array.isArray(poses)) {
+    throw new Error("Claude pose output is not an array");
+  }
+
+  // Filter out any "half-baked" objects that might have been at the very end of a truncation
+  const validatedPoses = poses.filter(
+    (p) => p && typeof p === "object" && p.time !== undefined && p.pose !== undefined
+  );
+
+  console.log(`✅ Processed ${validatedPoses.length} valid poses`);
+  return validatedPoses;
 }

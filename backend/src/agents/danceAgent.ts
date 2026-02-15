@@ -1,8 +1,9 @@
 import fs from "fs";
 import path from "path";
 import { createSunoTrackFromLyrics, downloadSunoMp3, getSunoTrackStatus } from "../clients/sunoClient.js";
-import { generateLyrics, groupLyricsIntoFragments, mapFragmentsToTimestamps } from "../clients/claudeClient.js";
+import { generateLyrics, groupLyricsIntoFragments, generatePoses } from "../clients/claudeClient.js";
 import { getWordTimestamps } from "../clients/whisperClient.js";
+import { poseGenerationPrompt } from "../prompts/poseGenerationPrompt.js";
 import type { DanceSong } from "../types/dance.js";
 
 export async function startDanceProject(topic: string, mood?: string, genre?: string): Promise<DanceSong> {
@@ -124,7 +125,14 @@ ${mood ? `Mood: ${mood}\n` : ''}${genre ? `Genre: ${genre}\n` : ''}`;
   const fragmentTimestamps = await groupLyricsIntoFragments(words);
   const fragmentCount = Object.keys(fragmentTimestamps).length;
   console.log(`✅ Grouped lyrics into ${fragmentCount} fragments with timestamps.`);
-  console.log("Sample fragments:", Object.entries(fragmentTimestamps));
+  console.log("Sample fragments:", Object.entries(fragmentTimestamps).slice(0, 3));
+
+  // Step 5: Generate 3D animation poses
+  console.log("\n💃 Step 5: Generating 3D animation poses with Claude...");
+  const prompt = poseGenerationPrompt(fragmentTimestamps);
+  const poses = await generatePoses(prompt);
+  console.log(`✅ Generated ${poses.length} poses`);
+  console.log("Sample pose:", poses[0]);
 
   return song;
 }
