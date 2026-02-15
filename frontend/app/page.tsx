@@ -13,7 +13,7 @@ function PosePlayer() {
 
 export default function Home() {
   return (
-    <div className="relative h-screen w-screen overflow-hidden bg-zinc-900">
+    <div className="relative h-screen w-screen overflow-hidden" style={{ backgroundColor: '#462d2d' }}>
       <Scene />
       <PosePlayer />
       <GameHUD
