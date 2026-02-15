@@ -1,118 +1,268 @@
-# JAEL Backend - Dance Agent
+# JAEL Backend
 
-This backend uses the Claude Agent SDK to orchestrate a dance project workflow.
+AI-powered dance choreography generation system that creates synchronized 3D animations from song lyrics.
 
-## Workflow
+## 🎯 Overview
 
-1. **Generate Lyrics**: Takes a topic (and optional mood/genre) and generates song lyrics
-2. **Generate Music**: Uses the Suno API to create music from the generated lyrics
-3. **Create Step Chart**: (To be implemented) Assigns dance moves to strategic timestamps
+The JAEL backend orchestrates a multi-step workflow that:
+1. **Generates lyrics** using Claude AI based on a topic/mood/genre
+2. **Creates music** using the Suno API
+3. **Transcribes audio** with OpenAI Whisper for word-level timestamps
+4. **Groups lyrics** into semantic fragments (~2 beats each)
+5. **Generates 3D poses** with physical constraints for animation
 
-## Setup
+## 🏗️ Architecture
 
-1. Install dependencies:
+```
+backend/
+├── src/
+│   ├── agents/          # Workflow orchestration
+│   │   └── danceAgent.ts
+│   ├── clients/         # External API integrations
+│   │   ├── claudeClient.ts    # Claude AI (lyrics, fragments, poses)
+│   │   ├── sunoClient.ts      # Suno API (music generation)
+│   │   └── whisperClient.ts   # OpenAI Whisper (transcription)
+│   ├── prompts/         # AI prompt templates
+│   │   ├── poseGenerationPrompt.ts
+│   │   └── ...
+│   ├── types/           # TypeScript type definitions
+│   │   └── dance.ts
+│   ├── config/          # Configuration
+│   │   └── env.ts
+│   ├── cli/             # Command-line tools
+│   │   └── test-workflow.ts
+│   └── server.ts        # Express server (future API)
+├── output/              # Generated artifacts (gitignored)
+│   └── run-{timestamp}/
+│       ├── audio.mp3
+│       ├── lyrics.txt
+│       ├── words.json
+│       ├── fragments.json
+│       ├── poses.json
+│       ├── song.json
+│       └── summary.txt
+└── temp/                # Temporary files (gitignored)
+```
+
+## 🚀 Getting Started
+
+### Prerequisites
+
+- Node.js 18+
+- npm or yarn
+- API Keys:
+  - Anthropic API key (Claude)
+  - Suno API key
+  - OpenAI API key (Whisper)
+
+### Installation
+
 ```bash
+cd backend
 npm install
 ```
 
-2. Configure environment variables in `.env`:
-```
-PORT=4001
+### Environment Setup
+
+Create a `.env` file:
+
+```env
+# Claude AI
 ANTHROPIC_API_KEY=your_anthropic_key
+
+# Suno API
+SUNO_API_BASE_URL=https://api.suno.ai/v1/
 SUNO_API_KEY=your_suno_key
-SUNO_API_BASE_URL=https://api.suno.ai
+
+# OpenAI Whisper
+OPENAI_API_KEY=your_openai_key
 ```
 
-3. Run the development server:
-```bash
-npm run dev
-```
-
-## Testing the Workflow
-
-### CLI Workflow Test
-
-Test the complete agent workflow from the command line:
+### Run the Workflow
 
 ```bash
-# Default: topic="summer vibes", mood="upbeat", genre="pop"
 npm run workflow
-
-# Custom parameters
-npm run workflow "ocean waves" "calm" "ambient"
-
-# Just topic
-npm run workflow "city lights"
 ```
 
-The workflow will:
-- Run the complete agent workflow with Claude
-- Save outputs to `backend/output/` directory:
-  - `workflow-[timestamp].json` - Full JSON result
-  - `workflow-[timestamp].txt` - Human-readable output
-- Print the result summary to console
+This will:
+- Generate a song about "Freytag's pyramid" (upbeat pop)
+- Create all artifacts in `output/run-{timestamp}/`
 
-### Unit Tests
+## 📦 Key Components
 
-Run unit tests for individual tools:
+### 1. Dance Agent (`danceAgent.ts`)
 
-```bash
-# Run all tests
-npm test
+Main workflow orchestrator. Coordinates all steps:
 
-# Run tests in watch mode
-npm run test:watch
+```typescript
+import { startDanceProject } from './agents/danceAgent.js';
 
-# Run with coverage
-npm run test:coverage
+const song = await startDanceProject(
+  "Freytag's pyramid",  // topic
+  "upbeat",              // mood (optional)
+  "pop"                  // genre (optional)
+);
 ```
 
-## API Endpoints
+### 2. Claude Client (`claudeClient.ts`)
 
-### POST /api/dance/create
+Handles all Claude AI interactions:
 
-Create a new dance project.
+```typescript
+// Generate lyrics
+const lyrics = await generateLyrics(topic, mood, genre);
 
-**Request Body:**
+// Group into fragments with timestamps
+const fragments = await groupLyricsIntoFragments(wordTimestamps);
+
+// Generate 3D animation poses
+const poses = await generatePoses(prompt);
+```
+
+### 3. Suno Client (`sunoClient.ts`)
+
+Music generation via Suno API:
+
+```typescript
+// Submit track for generation
+const track = await createSunoTrackFromLyrics(lyrics, genre);
+
+// Poll for completion
+const status = await getSunoTrackStatus(trackId);
+
+// Download MP3
+const localPath = await downloadSunoMp3(audioUrl, trackId);
+```
+
+### 4. Whisper Client (`whisperClient.ts`)
+
+Audio transcription with word-level timestamps:
+
+```typescript
+const words = await getWordTimestamps(audioFilePath);
+// Returns: [{ word: "Hello", start: 0.5, end: 0.8 }, ...]
+```
+
+## 🎨 Pose Generation
+
+Poses follow strict physical constraints:
+
+### Arm & Hand Geometry
+- **Shoulder Angle** (0-180°): 0=down, 90=T-pose, 180=up
+- **Elbow Angle** (0-180°): 0=bent, 180=straight
+- **Hand Shapes**: `open`, `fist`, `one`, `peace`, `three`, `four`, `heart`, `flat`, `pointing`
+
+### 3x3 Foot Grid
+```
+TL  T  TR    (Top/Back - Tiptoe)
+L   M  R     (Middle - Neutral)
+BL  B  BR    (Bottom/Front - Heel)
+```
+
+**Rules:**
+- Both feet can only share cell "M"
+- No crossing: left foot can't be right of right foot
+- Sequential movement for smooth transitions
+
+### Example Pose
+
 ```json
 {
-  "topic": "summer vibes",
-  "mood": "upbeat",
-  "genre": "pop"
-}
-```
-
-**Response:**
-```json
-{
-  "success": true,
-  "data": {
-    "lyrics": {
-      "title": "Song about summer vibes",
-      "lyrics": "..."
-    },
-    "track": {
-      "trackId": "...",
-      "status": "queued",
-      "audioUrl": "...",
-      "bpm": 120
-    }
+  "time": 5.64,
+  "pose": {
+    "leftShoulderAngle": 45,
+    "rightShoulderAngle": 90,
+    "leftElbowAngle": 180,
+    "rightElbowAngle": 180,
+    "leftHandShape": "open",
+    "rightHandShape": "pointing",
+    "leftFoot": "L",
+    "rightFoot": "R"
   }
 }
 ```
 
-## Architecture
+## 📊 Output Files
 
-- **Agent**: `src/agents/danceAgent.ts` - Orchestrates the workflow using Claude Agent SDK
-- **Tools**: `src/agents/tools.ts` - Defines the tools available to the agent (generate_lyrics, generate_music, save_step_chart)
-- **Client**: `src/clients/sunoClient.ts` - Handles communication with Suno API
-- **Routes**: `src/routes/danceRoutes.ts` - Express routes for the API
-- **Types**: `src/types/dance.ts` - TypeScript type definitions
-- **Prompts**: `src/prompts/danceSystemPrompt.ts` - System prompt for the agent
-- **CLI**: `src/cli/test-workflow.ts` - Command-line workflow tester
+Each run creates a directory with:
 
-## Output Directory
+| File | Description |
+|------|-------------|
+| `audio.mp3` | Generated song audio |
+| `lyrics.txt` | Human-readable lyrics |
+| `words.json` | Word-level timestamps from Whisper |
+| `fragments.json` | Lyric fragments mapped to timestamps |
+| `poses.json` | 3D animation pose sequence |
+| `song.json` | Complete DanceSong object |
+| `summary.txt` | Run statistics and metadata |
 
-Workflow test outputs are saved to `backend/output/` (gitignored). Each run creates:
-- A JSON file with the complete result
-- A text file with human-readable output
+## 🔧 Development
+
+### Run Tests
+
+```bash
+npm test
+```
+
+### Type Checking
+
+```bash
+npm run type-check
+```
+
+### Build
+
+```bash
+npm run build
+```
+
+## 📝 Type Definitions
+
+### DanceSong
+
+```typescript
+type DanceSong = {
+  lyrics: LyricResult;
+  track: SunoTrackResult;
+  stepChart?: DanceMove[];
+  lyricFragments?: LyricFragmentResult;
+};
+```
+
+### LyricResult
+
+```typescript
+type LyricResult = {
+  title: string;
+  lyrics: string;
+};
+```
+
+### SunoTrackResult
+
+```typescript
+type SunoTrackResult = {
+  trackId: string;
+  status: "submitted" | "queued" | "streaming" | "complete" | "error";
+  audioUrl?: string;
+  bpm?: number;
+};
+```
+
+## 🤝 Contributing
+
+1. Follow the existing code structure
+2. Add types for all new functions
+3. Update this README for new features
+4. Test with `npm run workflow`
+
+## 📄 License
+
+MIT
+
+## 🙏 Acknowledgments
+
+- **Claude AI** by Anthropic - Lyrics, fragments, and pose generation
+- **Suno API** - Music generation
+- **OpenAI Whisper** - Audio transcription
+- **Freytag's Pyramid** - Narrative structure inspiration

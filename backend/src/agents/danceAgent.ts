@@ -1,8 +1,9 @@
 import fs from "fs";
 import path from "path";
 import { createSunoTrackFromLyrics, downloadSunoMp3, getSunoTrackStatus } from "../clients/sunoClient.js";
-import { generateLyrics, groupLyricsIntoFragments, mapFragmentsToTimestamps } from "../clients/claudeClient.js";
+import { generateLyrics, groupLyricsIntoFragments, generatePoses } from "../clients/claudeClient.js";
 import { getWordTimestamps } from "../clients/whisperClient.js";
+import { poseGenerationPrompt } from "../prompts/poseGenerationPrompt.js";
 import type { DanceSong } from "../types/dance.js";
 
 export async function startDanceProject(topic: string, mood?: string, genre?: string): Promise<DanceSong> {
@@ -16,16 +17,14 @@ export async function startDanceProject(topic: string, mood?: string, genre?: st
   console.log("Lyrics preview:");
   console.log(lyrics.lyrics.substring(0, 200) + "...\n");
 
-  // Save lyrics to output directory
-  const outputDir = path.join(process.cwd(), 'output');
-  if (!fs.existsSync(outputDir)) {
-    fs.mkdirSync(outputDir, { recursive: true });
-  }
-
+  // Create a unique run directory
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-  const lyricsFilename = `lyrics-${timestamp}.txt`;
-  const lyricsFilepath = path.join(outputDir, lyricsFilename);
+  const runDir = path.join(process.cwd(), 'output', `run-${timestamp}`);
+  fs.mkdirSync(runDir, { recursive: true });
+  console.log(`📁 Run directory created: ${runDir}\n`);
 
+  // Save lyrics
+  const lyricsFilepath = path.join(runDir, 'lyrics.txt');
   const lyricsContent = `${lyrics.title}
 ${'='.repeat(lyrics.title.length)}
 
@@ -124,7 +123,73 @@ ${mood ? `Mood: ${mood}\n` : ''}${genre ? `Genre: ${genre}\n` : ''}`;
   const fragmentTimestamps = await groupLyricsIntoFragments(words);
   const fragmentCount = Object.keys(fragmentTimestamps).length;
   console.log(`✅ Grouped lyrics into ${fragmentCount} fragments with timestamps.`);
-  console.log("Sample fragments:", Object.entries(fragmentTimestamps));
+  console.log("Sample fragments:", Object.entries(fragmentTimestamps).slice(0, 3));
+
+  // Step 5: Generate 3D animation poses
+  console.log("\n💃 Step 5: Generating 3D animation poses with Claude...");
+  const prompt = poseGenerationPrompt(fragmentTimestamps);
+  const poses = await generatePoses(prompt);
+  console.log(`✅ Generated ${poses.length} poses`);
+  console.log("Sample pose:", poses[0]);
+
+  // Step 6: Save all artifacts to run directory
+  console.log("\n💾 Step 6: Saving all artifacts...");
+
+  // Copy audio file to run directory
+  const audioDestPath = path.join(runDir, 'audio.mp3');
+  fs.copyFileSync(localPath, audioDestPath);
+  console.log(`✅ Audio saved: ${audioDestPath}`);
+
+  // Save word timestamps
+  const wordsPath = path.join(runDir, 'words.json');
+  fs.writeFileSync(wordsPath, JSON.stringify(words, null, 2));
+  console.log(`✅ Words saved: ${wordsPath}`);
+
+  // Save fragment timestamps
+  const fragmentsPath = path.join(runDir, 'fragments.json');
+  fs.writeFileSync(fragmentsPath, JSON.stringify(fragmentTimestamps, null, 2));
+  console.log(`✅ Fragments saved: ${fragmentsPath}`);
+
+  // Save poses
+  const posesPath = path.join(runDir, 'poses.json');
+  fs.writeFileSync(posesPath, JSON.stringify(poses, null, 2));
+  console.log(`✅ Poses saved: ${posesPath}`);
+
+  // Save complete song data
+  const songPath = path.join(runDir, 'song.json');
+  fs.writeFileSync(songPath, JSON.stringify(song, null, 2));
+  console.log(`✅ Song data saved: ${songPath}`);
+
+  // Save summary
+  const summaryPath = path.join(runDir, 'summary.txt');
+  const summary = `Dance Project Summary
+${'='.repeat(50)}
+
+Title: ${lyrics.title}
+Topic: ${topic}
+${mood ? `Mood: ${mood}\n` : ''}${genre ? `Genre: ${genre}\n` : ''}
+Generated: ${new Date().toLocaleString()}
+
+Track ID: ${track.trackId}
+Audio URL: ${finalAudioUrl}
+
+Statistics:
+- Word segments: ${words.length}
+- Lyric fragments: ${fragmentCount}
+- Animation poses: ${poses.length}
+
+Files:
+- lyrics.txt
+- audio.mp3
+- words.json
+- fragments.json
+- poses.json
+- song.json
+`;
+  fs.writeFileSync(summaryPath, summary);
+  console.log(`✅ Summary saved: ${summaryPath}`);
+
+  console.log(`\n✨ All artifacts saved to: ${runDir}\n`);
 
   return song;
 }
