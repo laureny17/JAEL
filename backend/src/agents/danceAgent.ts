@@ -2,15 +2,91 @@ import Anthropic from "@anthropic-ai/sdk";
 import fs from "fs";
 import path from "path";
 import { env } from "../config/env.js";
-import { createSunoTrackFromLyrics, getSunoTrackStatus } from "../clients/sunoClient.js";
-import type { DanceWorkflowResult, LyricResult } from "../types/dance.js";
-import { danceSystemPrompt } from "../prompts/danceSystemPrompt.js";
+import { createSunoTrackFromLyrics, downloadSunoMp3, getSunoTrackStatus } from "../clients/sunoClient.js";
+import type { DanceSong, LyricFragmentResult, LyricResult } from "../types/dance.js";
+import { getWordTimestamps, type WordTimestamp } from "../clients/whisperClient.js";
 
 const anthropic = new Anthropic({
   apiKey: env.anthropicApiKey,
 });
 
-export async function startDanceProject(topic: string, mood?: string, genre?: string): Promise<DanceWorkflowResult> {
+function extractJsonObject(rawText: string): string {
+  const trimmed = rawText.trim();
+  if (trimmed.startsWith("```")) {
+    return trimmed.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
+  }
+
+  const jsonMatch = rawText.match(/(\{[\s\S]*\})/);
+  if (!jsonMatch) {
+    throw new Error("Failed to parse JSON object from Claude response");
+  }
+
+  return jsonMatch[0];
+}
+
+async function groupLyricsIntoFragments(
+  fullLyrics: string,
+  words: WordTimestamp[],
+  bpm?: number
+): Promise<LyricFragmentResult> {
+  const twoBeatSeconds = bpm && bpm > 0 ? (120 / bpm) : 1;
+  const wordsForPrompt = words.map((word) => ({
+    word: word.word,
+    start: Number(word.start.toFixed(3)),
+    end: Number(word.end.toFixed(3)),
+  }));
+
+  const prompt = `Group the lyrics into semantically meaningful fragments that are around 2 beats each.
+
+Inputs:
+- full_lyrics: ${JSON.stringify(fullLyrics)}
+- word_timestamps: ${JSON.stringify(wordsForPrompt)}
+- bpm: ${bpm ?? "unknown"}
+- target_seconds_per_fragment: ${twoBeatSeconds}
+
+Rules:
+1) Keep each lyric fragment semantically coherent.
+2) Try to keep each fragment close to target_seconds_per_fragment using timestamp spacing.
+3) Every fragment must map to the word_timestamps in order.
+4) Return matching-length arrays.
+5) timestamps must be strictly increasing.
+
+Return ONLY valid JSON with this exact shape:
+{
+  "timestamps": [0.0, 1.2],
+  "lyricSegments": ["segment text", "next segment"]
+}`;
+
+  const response = await anthropic.messages.create({
+    model: "claude-opus-4-6",
+    max_tokens: 2000,
+    messages: [
+      {
+        role: "user",
+        content: prompt,
+      },
+    ],
+  });
+
+  const responseText = response.content[0]?.type === "text" ? response.content[0].text : "";
+  const parsed = JSON.parse(extractJsonObject(responseText)) as LyricFragmentResult;
+
+  if (!Array.isArray(parsed.timestamps) || !Array.isArray(parsed.lyricSegments)) {
+    throw new Error("Claude fragment output is missing required arrays");
+  }
+
+  if (parsed.timestamps.length !== parsed.lyricSegments.length) {
+    throw new Error("Claude fragment output has mismatched timestamps and lyricSegments lengths");
+  }
+
+  return {
+    timestamps: parsed.timestamps.map((value) => Number(value)),
+    lyricSegments: parsed.lyricSegments.map((value) => String(value).trim()),
+  };
+}
+
+export async function startDanceProject(topic: string, mood?: string, genre?: string): Promise<DanceSong> {
+
   console.log("\n🎵 Step 1: Generating lyrics with Claude...\n");
 
   // Step 1: Generate lyrics using Claude
@@ -136,16 +212,57 @@ ${mood ? `Mood: ${mood}\n` : ''}${genre ? `Genre: ${genre}\n` : ''}`;
 
   console.log(`\n📀 Track Info:`);
   console.log(`Status: ${finalClipData.status}`);
-  if (finalClipData.audio_url) {
-    console.log(`Audio URL: ${finalClipData.audio_url}`);
+  const finalAudioUrl = finalClipData.audioUrl || finalClipData.audio_url;
+  if (finalAudioUrl) {
+    console.log(`Audio URL: ${finalAudioUrl}`);
   }
   console.log();
 
   // Step 3: Return the complete workflow result
-  const result: DanceWorkflowResult = {
+  const song: DanceSong = {
     lyrics,
     track: finalClipData
   };
 
-  return result;
+  // Step 3: Transcribe and analyze audio
+  if (!finalAudioUrl) {
+    throw new Error("No audio URL available from Suno");
+  }
+
+
+  // Download the audio file locally
+  // const finalAudioUrl = "https://cdn1.suno.ai/03c1821e-fe29-4d4a-b923-0b83093247d4.mp3";
+  // const track = {
+  //   trackId: "example-track-id",
+  //   status: "complete",}
+  // let song: DanceSong = {
+  //   track: track
+  // };
+
+  // const lyrics = ""
+
+  const localPath = await downloadSunoMp3(finalAudioUrl, track.trackId);
+
+  // Use Whisper to get word-level timestamps
+  console.log("🤖 Step 3: Analyzing audio with Whisper...");
+  const segments = await getWordTimestamps(localPath);
+
+  if (!segments || segments.length === 0) {
+    throw new Error("Whisper transcription returned no segments");
+  }
+
+  console.log(`✅ Transcription complete. Found ${segments.length} word segments.`);
+
+  // Sample check
+  if (segments.length > 0) {
+    console.log(`First Word: "${segments[0].word}" at ${segments[0].start}s`);
+  }
+
+  // Step 4: Group words into semantic lyric fragments
+  console.log("🧠 Step 4: Grouping words into semantic ~2-beat lyric fragments with Claude...");
+  const lyricFragments = await groupLyricsIntoFragments(lyrics.lyrics, segments);
+  song.lyricFragments = lyricFragments;
+  console.log(`✅ Grouped lyrics into ${lyricFragments.lyricSegments.length} fragments.`);
+
+  return song;
 }

@@ -1,3 +1,6 @@
+import axios from "axios";
+import fs from "fs";
+import path from "path";
 import { env } from "../config/env.js";
 import type { LyricResult, SunoTrackResult } from "../types/dance.js";
 
@@ -95,4 +98,36 @@ export async function getSunoTrackStatus(trackId: string): Promise<SunoTrackResu
     status: currentStatus,
     audioUrl: clip.audio_url || undefined, // API might return empty string initially
   };
+}
+
+// Download mp3 file locally
+export async function downloadSunoMp3(url: string, trackId: string): Promise<string> {
+  // Create temp directory in the project root
+  const tempDir = path.resolve(process.cwd(), "temp");
+
+  if (!fs.existsSync(tempDir)) {
+    fs.mkdirSync(tempDir, { recursive: true });
+  }
+
+  const filePath = path.join(tempDir, `${trackId}.mp3`);
+  const writer = fs.createWriteStream(filePath);
+
+  console.log(`📥 Downloading MP3 from: ${url}`);
+  console.log(`💾 Saving to: ${filePath}`);
+
+  const response = await axios({
+    url,
+    method: 'GET',
+    responseType: 'stream'
+  });
+
+  response.data.pipe(writer);
+
+  return new Promise((resolve, reject) => {
+    writer.on('finish', () => {
+      console.log(`✅ Downloaded: ${filePath}`);
+      resolve(filePath);
+    });
+    writer.on('error', reject);
+  });
 }

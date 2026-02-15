@@ -22,8 +22,14 @@ export type DanceMove = {
   description: string;
 };
 
-export type DanceWorkflowResult = {
+export type LyricFragmentResult = {
+  timestamps: number[];
+  lyricSegments: string[];
+};
+
+export type DanceSong = {
   lyrics: LyricResult;
   track: SunoTrackResult;
   stepChart?: DanceMove[];
+  lyricFragments?: LyricFragmentResult;
 };

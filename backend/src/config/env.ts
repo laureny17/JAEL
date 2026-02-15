@@ -10,8 +10,9 @@ for (const key of requiredEnv) {
 }
 
 export const env = {
-  port: Number(process.env.PORT ?? 4001),
-  anthropicApiKey: process.env.ANTHROPIC_API_KEY as string,
-  sunoApiKey: process.env.SUNO_API_KEY as string,
-  sunoApiBaseUrl: process.env.SUNO_API_BASE_URL ?? "https://studio-api.prod.suno.com/api/v2/external/hackathons/"
+  port: parseInt(process.env.PORT || "3001", 10),
+  anthropicApiKey: process.env.ANTHROPIC_API_KEY || "",
+  openaiApiKey: process.env.OPENAI_API_KEY || "",
+  sunoApiKey: process.env.SUNO_API_KEY || "",
+  sunoApiBaseUrl: process.env.SUNO_API_BASE_URL || "https://studio-api.prod.suno.com"
 };
