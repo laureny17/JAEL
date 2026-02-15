@@ -25,7 +25,7 @@ const TARGET_HEIGHT = 160; // All constants are calibrated for this height
 const DEG_TO_RAD = Math.PI / 180;
 
 export function Character() {
-  const { scene } = useGLTF('/character-timmy.glb');
+  const { scene } = useGLTF('/character-timmy-2.glb');
   const { camera, controls } = useThree();
   const boneMapRef = useRef<Map<string, THREE.Bone> | null>(null);
   const animatorRef = useRef<PoseAnimator>(new PoseAnimator());
@@ -453,4 +453,4 @@ function applyHandPoseTargets(
   }
 }
 
-useGLTF.preload('/character-timmy.glb');
+useGLTF.preload('/character-timmy-2.glb');

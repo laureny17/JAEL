@@ -124,3 +124,16 @@ export interface PoseKeyframe {
 
 /** An ordered sequence of timestamped pose keyframes. */
 export type PoseSequence = PoseKeyframe[];
+
+// ---------------------------------------------------------------------------
+// Arrow sequences — timestamped directions for R/L foot lanes
+// ---------------------------------------------------------------------------
+
+/** A single arrow note in a foot lane. */
+export interface ArrowNote {
+  time: number;              // Seconds from start
+  direction: GridPosition;   // Which arrow to show
+}
+
+/** An ordered sequence of arrow notes for one foot lane. */
+export type ArrowSequence = ArrowNote[];
