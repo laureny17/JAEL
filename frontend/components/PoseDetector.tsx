@@ -35,9 +35,14 @@ export function PoseDetector() {
   const landmarkerRef = useRef<PoseLandmarker | null>(null);
   const rafRef = useRef(0);
   const streamRef = useRef<MediaStream | null>(null);
+  const initStartedRef = useRef(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Guard: prevent duplicate getUserMedia calls if the component double-mounts
+    if (initStartedRef.current) return;
+    initStartedRef.current = true;
+
     let cancelled = false;
 
     async function createLandmarker(
@@ -58,8 +63,26 @@ export function PoseDetector() {
     async function init() {
       // Fire-and-forget camera — shows feed as soon as device is available.
       // Don't await: a busy/slow camera must not block the model or loop.
-      navigator.mediaDevices
-        .getUserMedia({ video: { width: 640, height: 480 }, audio: false })
+      console.log('[PoseDetector] Requesting camera permission…');
+
+      // Enumerate devices first to check camera availability
+      try {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const cameras = devices.filter((d) => d.kind === 'videoinput');
+        console.log(`[PoseDetector] Found ${cameras.length} camera(s):`, cameras.map((c) => c.label || c.deviceId));
+      } catch (e) {
+        console.warn('[PoseDetector] Could not enumerate devices:', e);
+      }
+
+      // Use a timeout so a hung getUserMedia doesn't silently stall forever
+      const cameraTimeout = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('Camera request timed out after 10s — check browser permissions')), 10_000),
+      );
+
+      Promise.race([
+        navigator.mediaDevices.getUserMedia({ video: true, audio: false }),
+        cameraTimeout,
+      ])
         .then(async (stream) => {
           if (cancelled) {
             stream.getTracks().forEach((t) => t.stop());
@@ -69,7 +92,7 @@ export function PoseDetector() {
           const video = videoRef.current!;
           video.srcObject = stream;
           await video.play();
-          console.log('[PoseDetector] Camera started');
+          console.log('[PoseDetector] Camera started —', video.videoWidth, '×', video.videoHeight);
         })
         .catch((err) => {
           console.error('[PoseDetector] Camera access failed:', err);
