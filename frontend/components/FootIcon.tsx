@@ -23,7 +23,7 @@ export function FootIcon({ position }: FootIconProps) {
     <img
       src={src}
       alt={position}
-      className="w-14 h-14 object-contain"
+      className="w-14 h-14 object-contain block"
       draggable={false}
     />
   );
