@@ -49,18 +49,23 @@ export async function generateLyrics(
   mood?: string,
   genre?: string
 ): Promise<LyricResult> {
-  const prompt = `Generate song lyrics about "${topic}"${mood ? ` with a ${mood} mood` : ''}${genre ? ` in the ${genre} genre` : ''}.
+  const prompt = `Generate SHORT, punchy song lyrics about "${topic}"${mood ? ` with a ${mood} mood` : ''}${genre ? ` in the ${genre} genre` : ''}.
 
-Follow this structure:
-- Verse 1
-- Chorus
-- Verse 2
-- Chorus
+This is for a rhythm dance game (like Just Dance), so keep it under 60 seconds of singable content.
+
+Follow this compact structure:
+- Verse 1 (4 lines) — laid-back energy, sets the scene
+- Chorus (4 lines) — big hook, peak energy
+- Verse 2 (4 lines) — shift the vibe: faster flow, higher intensity, or a new angle on the topic
+- Chorus (4 lines) — same hook, peak energy
+
+Keep lines short and rhythmic — easy to move to. Favor repetition and catchy hooks over complexity.
+Verse 1 and Verse 2 should feel distinct — different rhythm, energy, or perspective.
 
 Return ONLY a JSON object with this exact format (no markdown, no extra text):
 {
   "title": "Song Title Here",
-  "lyrics": "Full lyrics with section markers like [Verse 1], [Chorus], [Bridge], etc."
+  "lyrics": "Full lyrics with section markers like [Verse 1], [Chorus], etc."
 }`;
 
   const response = await anthropic.messages.create({
@@ -144,7 +149,13 @@ Example:
     throw new Error("Claude fragment output is missing fragmentTimestamps object");
   }
 
-  return parsed.fragmentTimestamps;
+  // Sort by timestamp value to fix out-of-order fragments from long context
+  const sorted = Object.fromEntries(
+    Object.entries(parsed.fragmentTimestamps)
+      .sort(([, a], [, b]) => a - b)
+  );
+
+  return sorted;
 }
 
 /**

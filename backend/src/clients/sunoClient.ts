@@ -1,8 +1,12 @@
 import axios from "axios";
+import { execFile } from "child_process";
 import fs from "fs";
 import path from "path";
+import { promisify } from "util";
 import { env } from "../config/env.js";
 import type { LyricResult, SunoTrackResult } from "../types/dance.js";
+
+const execFileAsync = promisify(execFile);
 
 type SunoGeneratePayload = {
   prompt: string;
@@ -30,7 +34,7 @@ export async function createSunoTrackFromLyrics(
   // Step 1: Generate the track using Suno API
   const payload: SunoGeneratePayload = {
     prompt: lyrics.lyrics,
-    tags: `${genre}, 60s`
+    tags: genre || undefined
   };
 
   console.log("Calling Suno API with payload:", JSON.stringify(payload, null, 2));
@@ -130,4 +134,29 @@ export async function downloadSunoMp3(url: string, trackId: string): Promise<str
     });
     writer.on('error', reject);
   });
+}
+
+/**
+ * Clip an MP3 file to a maximum duration using ffmpeg.
+ * Overwrites the original file with the trimmed version.
+ */
+export async function clipAudio(filePath: string, maxDurationSeconds: number): Promise<void> {
+  const dir = path.dirname(filePath);
+  const ext = path.extname(filePath);
+  const base = path.basename(filePath, ext);
+  const clippedPath = path.join(dir, `${base}_clipped${ext}`);
+
+  console.log(`✂️ Clipping audio to ${maxDurationSeconds}s: ${filePath}`);
+
+  await execFileAsync("ffmpeg", [
+    "-i", filePath,
+    "-t", String(maxDurationSeconds),
+    "-c", "copy",
+    "-y",
+    clippedPath,
+  ]);
+
+  // Replace original with clipped version
+  fs.renameSync(clippedPath, filePath);
+  console.log(`✅ Audio clipped to ${maxDurationSeconds}s`);
 }

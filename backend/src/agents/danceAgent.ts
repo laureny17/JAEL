@@ -1,12 +1,12 @@
 import fs from "fs";
 import path from "path";
-import { createSunoTrackFromLyrics, downloadSunoMp3, getSunoTrackStatus } from "../clients/sunoClient.js";
+import { createSunoTrackFromLyrics, clipAudio, downloadSunoMp3, getSunoTrackStatus } from "../clients/sunoClient.js";
 import { generateLyrics, groupLyricsIntoFragments, generatePoses } from "../clients/claudeClient.js";
 import { getWordTimestamps } from "../clients/whisperClient.js";
 import { poseGenerationPrompt } from "../prompts/poseGenerationPrompt.js";
 import type { DanceSong } from "../types/dance.js";
 
-export async function startDanceProject(topic: string, mood?: string, genre?: string): Promise<DanceSong> {
+export async function startDanceProject(topic: string, mood?: string, genre?: string, maxDurationSeconds: number = 60): Promise<DanceSong> {
 
   console.log("\n🎵 Step 1: Generating lyrics with Claude...\n");
 
@@ -103,15 +103,20 @@ ${mood ? `Mood: ${mood}\n` : ''}${genre ? `Genre: ${genre}\n` : ''}`;
 
   const localPath = await downloadSunoMp3(finalAudioUrl, track.trackId);
 
+  // Clip audio to max duration
+  await clipAudio(localPath, maxDurationSeconds);
+
   // Use Whisper to get word-level timestamps
   console.log("🤖 Step 3: Analyzing audio with Whisper...");
-  const words = await getWordTimestamps(localPath);
+  const allWords = await getWordTimestamps(localPath);
 
-  if (!words || words.length === 0) {
+  if (!allWords || allWords.length === 0) {
     throw new Error("Whisper transcription returned no segments");
   }
 
-  console.log(`✅ Transcription complete. Found ${words.length} word segments.`);
+  // Filter words to only those within the duration cap
+  const words = allWords.filter(w => w.start < maxDurationSeconds);
+  console.log(`✅ Transcription complete. Found ${allWords.length} word segments, ${words.length} within ${maxDurationSeconds}s cap.`);
 
   // Sample check
   if (words.length > 0) {

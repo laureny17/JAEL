@@ -14,18 +14,15 @@ You MUST validate every pose against these rules before outputting:
 - Elbow (0-180): 0 is fully bent (hand touching shoulder), 180 is straight arm.
 - Hand Shapes: ["open", "fist", "one", "peace", "three", "four", "heart", "flat", "pointing"] ONLY.
 
-## Foot Grid & Stance (3x3 Grid)
-Rows: Top/Back (T), Middle (M), Bottom/Front (B).
-Columns: Left (L), Center (C), Right (R).
-- Grid Values: ["TL", "T", "TR", "L", "M", "R", "BL", "B", "BR"] ONLY.
+## Foot Grid & Stance (Cross-shaped, 5 positions)
+\`\`\`
+       T          Back (tiptoe stance)
+    L  M  R       Middle (flat foot)
+       B          Front (heel stance)
+\`\`\`
+- Grid Values: ["T", "L", "M", "R", "B"] ONLY.
 - RULE: Both feet can ONLY occupy the same cell if that cell is "M".
-- RULE (No Crossing): In any row, leftFoot column cannot be to the right of rightFoot column.
-  - Valid: leftFoot="L", rightFoot="R"
-  - Invalid: leftFoot="R", rightFoot="L"
-- RULE (Row Logic):
-  - Top (TL, T, TR) = Tiptoe/Back stance.
-  - Middle (L, M, R) = Neutral/Flat stance.
-  - Bottom (BL, B, BR) = Heel/Front stance.
+- RULE (No Crossing): leftFoot cannot be to the right of rightFoot (e.g. leftFoot="L", rightFoot="R" is valid; leftFoot="R", rightFoot="L" is invalid).
 
 # 2. Motion Design
 - Use 'time' exactly as provided in the fragment start timestamps.
