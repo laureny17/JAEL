@@ -56,8 +56,6 @@ Follow this structure:
 - Chorus
 - Verse 2
 - Chorus
-- Bridge
-- Chorus
 
 Return ONLY a JSON object with this exact format (no markdown, no extra text):
 {

@@ -30,7 +30,7 @@ export async function createSunoTrackFromLyrics(
   // Step 1: Generate the track using Suno API
   const payload: SunoGeneratePayload = {
     prompt: lyrics.lyrics,
-    tags: genre
+    tags: `${genre}, 60s`
   };
 
   console.log("Calling Suno API with payload:", JSON.stringify(payload, null, 2));
