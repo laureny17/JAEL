@@ -6,7 +6,7 @@ import { getWordTimestamps } from "../clients/whisperClient.js";
 import { poseGenerationPrompt } from "../prompts/poseGenerationPrompt.js";
 import type { DanceSong } from "../types/dance.js";
 
-export async function startDanceProject(topic: string, mood?: string, genre?: string, maxDurationSeconds: number = 60): Promise<DanceSong> {
+export async function startDanceProject(topic: string, length: 60 | 90 | 120, mood?: string, genre?: string, maxDurationSeconds: number = 60): Promise<DanceSong> {
 
   console.log("\n🎵 Step 1: Generating lyrics with Claude...\n");
 
@@ -41,7 +41,7 @@ ${mood ? `Mood: ${mood}\n` : ''}${genre ? `Genre: ${genre}\n` : ''}`;
   // Step 2: Generate music using Suno API
   console.log("🎵 Step 2: Generating music with Suno API...\n");
 
-  const track = await createSunoTrackFromLyrics(lyrics, genre);
+  const track = await createSunoTrackFromLyrics(lyrics, length, genre);
 
   console.log(`✅ Music generation ${track.status}`);
   console.log(`Track ID: ${track.trackId}`);
@@ -104,16 +104,17 @@ ${mood ? `Mood: ${mood}\n` : ''}${genre ? `Genre: ${genre}\n` : ''}`;
   const localPath = await downloadSunoMp3(finalAudioUrl, track.trackId);
 
   // Clip audio to max duration
-  await clipAudio(localPath, maxDurationSeconds);
+  // await clipAudio(localPath, maxDurationSeconds);
 
   // Use Whisper to get word-level timestamps
   console.log("🤖 Step 3: Analyzing audio with Whisper...");
-  const allWords = await getWordTimestamps(localPath);
+  const words = await getWordTimestamps(localPath);
 
-  if (!allWords || allWords.length === 0) {
+  if (!words || words.length === 0) {
     throw new Error("Whisper transcription returned no segments");
   }
 
+  /*
   // Filter words to only those within the duration cap
   const words = allWords.filter(w => w.start < maxDurationSeconds);
   console.log(`✅ Transcription complete. Found ${allWords.length} word segments, ${words.length} within ${maxDurationSeconds}s cap.`);
@@ -122,6 +123,7 @@ ${mood ? `Mood: ${mood}\n` : ''}${genre ? `Genre: ${genre}\n` : ''}`;
   if (words.length > 0) {
     console.log(`First Word: "${words[0].word}" at ${words[0].start}s`);
   }
+  */
 
   // Step 4: Group words into semantic lyric fragments with timestamps
   console.log("🧠 Step 4: Grouping words into semantic ~2-beat lyric fragments with Claude...");

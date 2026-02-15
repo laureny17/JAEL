@@ -15,7 +15,7 @@ Group the transcribed lyrics into semantically meaningful fragments that are rou
 ${lyrics}
 
 ## Transcribed Segments with Timestamps:
-${segments.map((seg, i) => `[${i}] ${seg.start.toFixed(2)}s - ${seg.end.toFixed(2)}s: "${seg.text}"`).join('\n')}
+${segments.map((seg, i) => `[${i}] ${seg.start.toFixed(2)}s - ${seg.end.toFixed(2)}s: "${seg.word}"`).join('\n')}
 
 # Requirements
 
