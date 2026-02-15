@@ -8,9 +8,10 @@ interface GameHUDProps {
   rightArrows: ArrowSequence;
   leftArrows: ArrowSequence;
   arrowDuration: number;
+  paused?: boolean;
 }
 
-export function GameHUD({ rightArrows, leftArrows, arrowDuration }: GameHUDProps) {
+export function GameHUD({ rightArrows, leftArrows, arrowDuration, paused }: GameHUDProps) {
   return (
     <div className="absolute inset-0 pointer-events-none z-50">
       <ScoreDisplay />
@@ -18,6 +19,7 @@ export function GameHUD({ rightArrows, leftArrows, arrowDuration }: GameHUDProps
         rightArrows={rightArrows}
         leftArrows={leftArrows}
         duration={arrowDuration}
+        paused={paused}
       />
     </div>
   );

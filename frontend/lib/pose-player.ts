@@ -12,12 +12,20 @@ import type { PoseSequence } from './types';
  *
  * The sequence loops when it reaches the end.
  */
-export function usePosePlayer(sequence: PoseSequence) {
+export function usePosePlayer(sequence: PoseSequence, paused = false) {
   const startTimeRef = useRef<number | null>(null);
   const lastKeyframeIndexRef = useRef(-1);
+  const elapsedRef = useRef(0);
+
+  useEffect(() => {
+    lastKeyframeIndexRef.current = -1;
+    elapsedRef.current = 0;
+    startTimeRef.current = null;
+  }, [sequence]);
 
   useEffect(() => {
     if (sequence.length === 0) return;
+    if (paused) return;
 
     // Total duration = last keyframe's time
     const totalDuration = sequence[sequence.length - 1].time;
@@ -25,11 +33,12 @@ export function usePosePlayer(sequence: PoseSequence) {
 
     function tick(now: number) {
       if (startTimeRef.current === null) {
-        startTimeRef.current = now;
+        startTimeRef.current = now - elapsedRef.current * 1000;
       }
 
       const elapsedMs = now - startTimeRef.current;
       const elapsedSec = elapsedMs / 1000;
+      elapsedRef.current = elapsedSec;
 
       // Loop: wrap elapsed time around total duration
       const loopedTime = totalDuration > 0
@@ -62,7 +71,6 @@ export function usePosePlayer(sequence: PoseSequence) {
     return () => {
       cancelAnimationFrame(rafId);
       startTimeRef.current = null;
-      lastKeyframeIndexRef.current = -1;
     };
-  }, [sequence]);
+  }, [sequence, paused]);
 }

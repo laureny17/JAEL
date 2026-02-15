@@ -16,16 +16,19 @@ interface LaneDisplayProps {
   rightArrows: ArrowSequence;
   leftArrows: ArrowSequence;
   duration: number;
+  paused?: boolean;
 }
 
 function ArrowLane({
   label,
   arrows,
   duration,
+  paused = false,
 }: {
   label: string;
   arrows: ArrowSequence;
   duration: number;
+  paused?: boolean;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const laneRef = useRef<HTMLDivElement>(null);
@@ -33,6 +36,7 @@ function ArrowLane({
   const iconRefs = useRef<(HTMLDivElement | null)[]>([]);
   const prevCenterRef = useRef<number[]>([]);
   const startTimeRef = useRef<number | null>(null);
+  const elapsedRef = useRef<number>(0);
 
   const setRef = useCallback(
     (idx: number) => (el: HTMLDivElement | null) => {
@@ -44,12 +48,17 @@ function ArrowLane({
   useEffect(() => {
     if (duration === 0) return;
 
+    if (paused) {
+      return;
+    }
+
     let rafId: number;
 
     function tick(now: number) {
       if (startTimeRef.current === null) startTimeRef.current = now;
 
       const elapsed = (now - startTimeRef.current) / 1000;
+      elapsedRef.current = elapsed;
       const currentTime = elapsed % duration;
       const container = containerRef.current;
       const lane = laneRef.current;
@@ -120,12 +129,15 @@ function ArrowLane({
       rafId = requestAnimationFrame(tick);
     }
 
+    if (startTimeRef.current === null) {
+      startTimeRef.current = performance.now() - elapsedRef.current * 1000;
+    }
     rafId = requestAnimationFrame(tick);
     return () => {
       cancelAnimationFrame(rafId);
       startTimeRef.current = null;
     };
-  }, [arrows, duration]);
+  }, [arrows, duration, paused]);
 
   return (
     <div className="flex items-center h-16">
@@ -178,12 +190,14 @@ function ArrowLane({
   );
 }
 
-function DashLane({ label, duration }: { label: string; duration: number }) {
+function DashLane({ label, duration, paused = false }: { label: string; duration: number; paused?: boolean }) {
   const laneRef = useRef<HTMLDivElement>(null);
   const startTimeRef = useRef<number | null>(null);
+  const elapsedRef = useRef<number>(0);
 
   useEffect(() => {
     if (duration === 0) return;
+    if (paused) return;
 
     let rafId: number;
 
@@ -191,6 +205,7 @@ function DashLane({ label, duration }: { label: string; duration: number }) {
       if (startTimeRef.current === null) startTimeRef.current = now;
 
       const elapsed = (now - startTimeRef.current) / 1000;
+      elapsedRef.current = elapsed;
       const currentTime = elapsed % duration;
       const lane = laneRef.current;
       if (!lane) {
@@ -204,12 +219,15 @@ function DashLane({ label, duration }: { label: string; duration: number }) {
       rafId = requestAnimationFrame(tick);
     }
 
+    if (startTimeRef.current === null) {
+      startTimeRef.current = performance.now() - elapsedRef.current * 1000;
+    }
     rafId = requestAnimationFrame(tick);
     return () => {
       cancelAnimationFrame(rafId);
       startTimeRef.current = null;
     };
-  }, [duration]);
+  }, [duration, paused]);
 
   return (
     <div className="flex items-center h-16">
@@ -244,7 +262,7 @@ function DashLane({ label, duration }: { label: string; duration: number }) {
   );
 }
 
-export function LaneDisplay({ rightArrows, leftArrows, duration }: LaneDisplayProps) {
+export function LaneDisplay({ rightArrows, leftArrows, duration, paused }: LaneDisplayProps) {
   return (
     <div className="absolute bottom-12 left-12 right-12 rounded-2xl flex flex-col justify-center gap-3 px-8 py-5" style={{ backgroundColor: '#f8f4f2', border: `2px solid ${LANE_COLOR}` }}>
       {/* Combined label divider */}
@@ -268,11 +286,11 @@ export function LaneDisplay({ rightArrows, leftArrows, duration }: LaneDisplayPr
         }}
       />
 
-      <ArrowLane label="RIGHT FOOT" arrows={rightArrows} duration={duration} />
-      <ArrowLane label="LEFT FOOT" arrows={leftArrows} duration={duration} />
+      <ArrowLane label="RIGHT FOOT" arrows={rightArrows} duration={duration} paused={paused} />
+      <ArrowLane label="LEFT FOOT" arrows={leftArrows} duration={duration} paused={paused} />
 
       {/* H lane — dashed line only for now */}
-      <DashLane label="HANDS" duration={duration} />
+      <DashLane label="HANDS" duration={duration} paused={paused} />
     </div>
   );
 }
