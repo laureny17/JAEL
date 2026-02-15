@@ -188,6 +188,9 @@ export function PoseDetector() {
                   rightElbowAngle: Math.round(rightElbowAngle),
                 });
               }
+            } else {
+              // Clear stale detections so missing person/camera frames can't score.
+              useDetectedPoseStore.getState().clearDetectedPose();
             }
           } catch (err) {
             console.error('[PoseDetector] Detection error:', err);

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Scene } from '@/components/Scene';
 import { PoseDetector } from '@/components/PoseDetector';
@@ -81,6 +81,8 @@ export default function Play() {
   const [leftArrows, setLeftArrows] = useState<ArrowSequence>([]);
   const [arrowDuration, setArrowDuration] = useState(1);
   const [lyrics, setLyrics] = useState<string[]>([]);
+  const lyricsContainerRef = useRef<HTMLDivElement | null>(null);
+  const lyricLineRefs = useRef<Array<HTMLDivElement | null>>([]);
   const searchParams = useSearchParams();
   const router = useRouter();
   const score = useGameStore((s) => s.score);
@@ -93,6 +95,22 @@ export default function Play() {
     const progress = Math.min(0.999, Math.max(0, currentTime / arrowDuration));
     return Math.min(lyrics.length - 1, Math.floor(progress * lyrics.length));
   }, [lyrics, currentTime, arrowDuration]);
+
+  const setLyricLineRef = useCallback(
+    (idx: number) => (el: HTMLDivElement | null) => {
+      lyricLineRefs.current[idx] = el;
+    },
+    []
+  );
+
+  useEffect(() => {
+    const container = lyricsContainerRef.current;
+    const activeLine = lyricLineRefs.current[currentLine];
+    if (!container || !activeLine) return;
+
+    const top = activeLine.offsetTop - container.offsetTop;
+    container.scrollTo({ top, behavior: 'smooth' });
+  }, [currentLine]);
 
   useEffect(() => {
     let cancelled = false;
@@ -143,6 +161,8 @@ export default function Play() {
         const lyricLines = toLyricLines(data.lyrics?.lyrics);
 
         if (!cancelled) {
+          useGameStore.getState().resetScore();
+          useGameStore.getState().setCurrentTime(0);
           setSequence(nextSequence);
           setRightArrows(nextRightArrows);
           setLeftArrows(nextLeftArrows);
@@ -224,6 +244,7 @@ export default function Play() {
         style={{
           bottom: '320px',
           width: '320px',
+          height: '180px',
           backgroundColor: '#f8f4f2',
           borderColor: '#462c2d',
         }}
@@ -231,10 +252,11 @@ export default function Play() {
         <div className="text-sm uppercase tracking-wide mb-3" style={{ color: '#462c2d' }}>
           Lyrics
         </div>
-        <div className="flex flex-col gap-2">
+        <div ref={lyricsContainerRef} className="flex flex-col gap-2 overflow-y-auto h-[126px] pr-1">
           {lyrics.map((line, idx) => (
             <div
               key={`${line}-${idx}`}
+              ref={setLyricLineRef(idx)}
               className="text-sm leading-snug"
               style={{
                 color: '#462c2d',

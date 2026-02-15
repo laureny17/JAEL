@@ -1,4 +1,4 @@
-import { HandPoseType, PoseInput } from './types';
+import { PoseInput } from './types';
 
 // ---------------------------------------------------------------------------
 // Types & Interfaces
@@ -21,21 +21,18 @@ export interface ScoreResult {
 // Constants
 // ---------------------------------------------------------------------------
 
-// Angle tolerances in degrees
+// Angle tolerances in degrees.
+// We keep a wider "PERFECT" window to tolerate webcam jitter/noise.
 const TOLERANCE = {
-  PERFECT: 15,
-  GREAT: 25,
-  GOOD: 40,
-  OKAY: 60,
+  PERFECT: 25,
+  GREAT: 38,
+  GOOD: 50,
+  OKAY: 58,
 };
 
-const POINTS = {
-  PERFECT: 1000,
-  GREAT: 500,
-  GOOD: 200,
-  OKAY: 50,
-  MISS: 0,
-};
+/** Above this average error (deg), arm scoring is always zero. */
+const MAX_SCORABLE_DIFF = 58;
+const MAX_POINTS_PER_MOVE = 100;
 
 // ---------------------------------------------------------------------------
 // Geometric Helpers
@@ -92,53 +89,6 @@ export function normalizeShoulderAngle(
 }
 
 // ---------------------------------------------------------------------------
-// Hand Shape Detection
-// ---------------------------------------------------------------------------
-
-/**
- * Simple heuristic to detect hand shape from landmarks.
- * This is a simplified version and would need more robust logic for complex shapes.
- */
-export function detectHandShape(landmarks: any[]): HandPoseType {
-  if (!landmarks || landmarks.length < 21) return 'open';
-
-  // Helper to check if a finger is extended
-  // Tip is higher (lower y value) than PIP joint
-  // Note: This assumes hand is upright. For arbitrary rotation, we need vector math.
-  // For simplicity, we'll use distance from wrist.
-  const wrist = landmarks[0];
-  
-  const isExtended = (tipIdx: number, pipIdx: number) => {
-    const tip = landmarks[tipIdx];
-    const pip = landmarks[pipIdx];
-    // Distance from wrist
-    const distTip = Math.hypot(tip.x - wrist.x, tip.y - wrist.y);
-    const distPip = Math.hypot(pip.x - wrist.x, pip.y - wrist.y);
-    return distTip > distPip * 1.2; // Tip significantly further than PIP
-  };
-
-  const thumbOpen = isExtended(4, 2);
-  const indexOpen = isExtended(8, 6);
-  const middleOpen = isExtended(12, 10);
-  const ringOpen = isExtended(16, 14);
-  const pinkyOpen = isExtended(20, 18);
-
-  const fingersOpenCount = [indexOpen, middleOpen, ringOpen, pinkyOpen].filter(Boolean).length;
-
-  if (fingersOpenCount === 4 && thumbOpen) return 'open';
-  if (fingersOpenCount === 4 && !thumbOpen) return 'four';
-  if (fingersOpenCount === 0) return 'fist'; // Thumb can be anywhere for fist usually
-  if (indexOpen && middleOpen && !ringOpen && !pinkyOpen) return 'peace';
-  if (indexOpen && !middleOpen && !ringOpen && !pinkyOpen) return 'pointing'; // or 'one'
-  if (indexOpen && middleOpen && ringOpen && !pinkyOpen) return 'three';
-  if (thumbOpen && !indexOpen && !middleOpen && !ringOpen && !pinkyOpen) return 'heart'; // Approximation for thumbs up
-  if (!thumbOpen && !indexOpen && !middleOpen && !ringOpen && !pinkyOpen) return 'fist';
-
-  // Default fallback
-  return 'open';
-}
-
-// ---------------------------------------------------------------------------
 // Comparison Logic
 // ---------------------------------------------------------------------------
 
@@ -151,79 +101,61 @@ function getScoreForDiff(diff: number): Score {
 }
 
 export function comparePose(target: PoseInput, detected: Partial<PoseInput>): ScoreResult {
-  // 1. Compare Arms (Shoulders & Elbows)
-  // We'll average the score of shoulder and elbow for each arm
-  
-  const checkArm = (
+  // Compare arms (shoulder + elbow)
+  const armDiff = (
     targetShoulder: number, targetElbow: number,
     detectedShoulder?: number, detectedElbow?: number
-  ): Score => {
-    if (detectedShoulder === undefined || detectedElbow === undefined) return 'MISS';
-    
+  ): number | null => {
+    if (detectedShoulder === undefined || detectedElbow === undefined) return null;
+
     const shoulderDiff = Math.abs(targetShoulder - detectedShoulder);
     const elbowDiff = Math.abs(targetElbow - detectedElbow);
-    
-    // Weighted average: shoulder is more important for overall silhouette
-    const avgDiff = (shoulderDiff * 0.6 + elbowDiff * 0.4);
-    return getScoreForDiff(avgDiff);
+    return shoulderDiff * 0.6 + elbowDiff * 0.4;
   };
 
-  const leftArmScore = checkArm(
+  const leftDiff = armDiff(
     target.leftShoulderAngle, target.leftElbowAngle,
     detected.leftShoulderAngle, detected.leftElbowAngle
   );
-  
-  const rightArmScore = checkArm(
+  const rightDiff = armDiff(
     target.rightShoulderAngle, target.rightElbowAngle,
     detected.rightShoulderAngle, detected.rightElbowAngle
   );
 
-  // 2. Compare Hands
-  const checkHand = (targetShape: HandPoseType, detectedShape?: HandPoseType): boolean => {
-    if (!detectedShape) return false;
-    // Strict equality for now, could add similarity matrix later
-    return targetShape === detectedShape;
-  };
-
-  const leftHandMatch = checkHand(target.leftHandShape, detected.leftHandShape);
-  const rightHandMatch = checkHand(target.rightHandShape, detected.rightHandShape);
-
-  // Calculate Points
-  const scoreToPoints = (s: Score) => POINTS[s];
-  
-  let currentPoints = 0;
-  currentPoints += scoreToPoints(leftArmScore);
-  currentPoints += scoreToPoints(rightArmScore);
-  currentPoints += leftHandMatch ? 100 : 0; // Bonus for hands
-  currentPoints += rightHandMatch ? 100 : 0;
-
-  // Determine Overall Score
-  // If any arm is a MISS, the whole pose is a MISS? Or average?
-  // Let's go with average-ish logic but biased towards worst performer to encourage precision
-  
-  const scores = [leftArmScore, rightArmScore];
-  let finalScore: Score = 'PERFECT';
-  
-  // If any miss, it's a miss (or okay at best)
-  if (scores.includes('MISS')) finalScore = 'MISS';
-  else if (scores.includes('OKAY')) finalScore = 'OKAY';
-  else if (scores.includes('GOOD')) finalScore = 'GOOD';
-  else if (scores.includes('GREAT')) finalScore = 'GREAT';
-  else finalScore = 'PERFECT';
-
-  // Downgrade if hands don't match (optional)
-  if ((!leftHandMatch || !rightHandMatch) && finalScore === 'PERFECT') {
-    finalScore = 'GREAT';
+  // If any required angle is missing, score nothing.
+  if (leftDiff === null || rightDiff === null) {
+    return {
+      score: 'MISS',
+      details: {
+        leftArm: 'MISS',
+        rightArm: 'MISS',
+        leftHand: false,
+        rightHand: false,
+      },
+      totalPoints: 0,
+    };
   }
+
+  const leftArmScore = getScoreForDiff(leftDiff);
+  const rightArmScore = getScoreForDiff(rightDiff);
+  const overallDiff = (leftDiff + rightDiff) / 2;
+
+  // Continuous points from error margin:
+  // 0 points at MAX_SCORABLE_DIFF+, up to 100 at 0 diff.
+  const normalized = Math.max(0, 1 - overallDiff / MAX_SCORABLE_DIFF);
+  const totalPoints = Math.round(MAX_POINTS_PER_MOVE * Math.pow(normalized, 1.8));
+
+  let finalScore: Score = getScoreForDiff(overallDiff);
+  if (totalPoints <= 0) finalScore = 'MISS';
 
   return {
     score: finalScore,
     details: {
       leftArm: leftArmScore,
       rightArm: rightArmScore,
-      leftHand: leftHandMatch,
-      rightHand: rightHandMatch,
+      leftHand: false,
+      rightHand: false,
     },
-    totalPoints: currentPoints,
+    totalPoints,
   };
 }

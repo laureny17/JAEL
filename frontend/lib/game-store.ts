@@ -12,7 +12,7 @@ interface GameActions {
 }
 
 export const useGameStore = create<GameState & GameActions>((set) => ({
-  score: 12450,
+  score: 0,
   currentTime: 0,
 
   addScore: (points) => set((s) => ({ score: s.score + points })),

@@ -19,6 +19,7 @@ interface DetectedPose {
 
 interface DetectedPoseActions {
   setDetectedPose: (pose: Omit<DetectedPose, 'lastDetectedAt'>) => void;
+  clearDetectedPose: () => void;
 }
 
 export const useDetectedPoseStore = create<DetectedPose & DetectedPoseActions>(
@@ -34,6 +35,14 @@ export const useDetectedPoseStore = create<DetectedPose & DetectedPoseActions>(
         ...pose,
         lastDetectedAt: performance.now(),
       }),
+
+    clearDetectedPose: () =>
+      set({
+        leftShoulderAngle: null,
+        rightShoulderAngle: null,
+        leftElbowAngle: null,
+        rightElbowAngle: null,
+        lastDetectedAt: 0,
+      }),
   }),
 );
-
