@@ -21,7 +21,7 @@ import {
 import type { FingerName, HandPoseType } from '@/lib/types';
 
 const FINGER_NAMES: FingerName[] = ['thumb', 'index', 'middle', 'ring', 'pinky'];
-const TARGET_HEIGHT = 160; // All constants are calibrated for this height
+const TARGET_HEIGHT = 100; // All constants are calibrated for this height
 const DEG_TO_RAD = Math.PI / 180;
 
 export function Character() {
