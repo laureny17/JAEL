@@ -13,8 +13,8 @@ const nunito = Nunito({
 });
 
 export const metadata: Metadata = {
-  title: "JAEL",
-  description: "Just Dance-inspired Agentic Experience Lab",
+  title: "step step learn",
+  description: "generate dance levels from your ideas and learn through movement",
 };
 
 export default function RootLayout({

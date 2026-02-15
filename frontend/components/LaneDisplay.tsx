@@ -14,6 +14,18 @@ const ARROW_SIZE = 56; // px (matches w-14)
 const HAND_CUE_WIDTH = 180;
 const ICON_POSITIONS = new Set(['T', 'L', 'R', 'B']);
 
+function pulseElement(el: HTMLElement | null) {
+  if (!el) return;
+  el.classList.remove('cue-hit-pulse');
+  // Restart CSS animation reliably on repeated hits.
+  void el.offsetWidth;
+  el.classList.add('cue-hit-pulse');
+}
+
+function emitCueHit() {
+  window.dispatchEvent(new CustomEvent('cue-hit'));
+}
+
 function signedLoopDelta(currentTime: number, eventTime: number, duration: number): number {
   let dt = currentTime - eventTime;
   if (duration <= 0) return dt;
@@ -107,6 +119,8 @@ function ArrowLane({
         }
 
         if (crossedMid && sparkRef.current) {
+          pulseElement((el.firstElementChild as HTMLElement) ?? el);
+          emitCueHit();
           const count = 5 + Math.floor(Math.random() * 4);
           for (let s = 0; s < count; s++) {
             const spark = document.createElement('span');
@@ -202,6 +216,7 @@ function HandCueLane({
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const laneRef = useRef<HTMLDivElement>(null);
+  const sparkRef = useRef<HTMLDivElement>(null);
   const cueRefs = useRef<(HTMLDivElement | null)[]>([]);
   const prevCenterRef = useRef<number[]>([]);
   const setRef = useCallback(
@@ -241,6 +256,9 @@ function HandCueLane({
         const rightEdge = midLineX + dt * SCROLL_SPEED;
         const leftEdge = rightEdge - HAND_CUE_WIDTH;
         const centerX = leftEdge + HAND_CUE_WIDTH / 2;
+        const prevCenter = prevCenterRef.current[i];
+        const prevRightEdge = prevCenter !== undefined ? prevCenter + HAND_CUE_WIDTH / 2 : undefined;
+        const crossedMid = prevRightEdge !== undefined && prevRightEdge < midLineX && rightEdge >= midLineX;
         prevCenterRef.current[i] = centerX;
 
         if (leftEdge >= -HAND_CUE_WIDTH && leftEdge <= containerWidth) {
@@ -259,6 +277,32 @@ function HandCueLane({
           el.style.opacity = '0';
           el.style.display = 'none';
         }
+
+        if (crossedMid) {
+          pulseElement((el.firstElementChild as HTMLElement) ?? el);
+          emitCueHit();
+          if (sparkRef.current) {
+            const count = 5 + Math.floor(Math.random() * 4);
+            for (let s = 0; s < count; s++) {
+              const spark = document.createElement('span');
+              const size = 10 + Math.random() * 14;
+              const dx = (Math.random() - 0.5) * 110;
+              const dy = (Math.random() - 0.5) * 70;
+              const duration = 420 + Math.random() * 320;
+              spark.className = 'spark';
+              spark.style.setProperty('--spark-size', `${size}px`);
+              spark.style.setProperty('--spark-dx', `${dx}px`);
+              spark.style.setProperty('--spark-dy', `${dy}px`);
+              spark.style.setProperty('--spark-duration', `${duration}ms`);
+              spark.style.left = `${midLineX}px`;
+              spark.style.top = `50%`;
+              sparkRef.current.appendChild(spark);
+              window.setTimeout(() => {
+                spark.remove();
+              }, duration + 50);
+            }
+          }
+        }
       }
 
       rafId = requestAnimationFrame(tick);
@@ -276,6 +320,7 @@ function HandCueLane({
         {label}
       </span>
       <div ref={containerRef} className="relative flex-1 h-full overflow-hidden">
+        <div ref={sparkRef} className="absolute inset-0 pointer-events-none z-30" />
         <div ref={laneRef} className="absolute top-1/2 -translate-y-1/2 h-0.5 w-full">
           <div
             className="absolute inset-0"
@@ -311,7 +356,7 @@ function HandCueLane({
               opacity: 0,
             }}
           >
-            {cue.label}
+            <div>{cue.label}</div>
           </div>
         ))}
       </div>

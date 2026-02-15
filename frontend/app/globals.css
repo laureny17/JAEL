@@ -47,6 +47,26 @@ body {
   will-change: transform, opacity;
 }
 
+.cue-hit-pulse {
+  transform-origin: center center;
+  animation: cue-hit-pulse 240ms cubic-bezier(0.22, 0.78, 0.28, 1);
+}
+
+@keyframes cue-hit-pulse {
+  0% {
+    transform: scale(1);
+    filter: brightness(1);
+  }
+  42% {
+    transform: scale(1.09);
+    filter: brightness(1.1);
+  }
+  100% {
+    transform: scale(1);
+    filter: brightness(1);
+  }
+}
+
 @keyframes spark-pop {
   0% {
     transform: translate(-50%, -50%) scale(1);

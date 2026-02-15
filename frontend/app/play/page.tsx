@@ -100,6 +100,7 @@ export default function Play() {
   const [arrowDuration, setArrowDuration] = useState(1);
   const [lyrics, setLyrics] = useState<string[]>([]);
   const [songAudioUrl, setSongAudioUrl] = useState<string | null>(null);
+  const [bgPulse, setBgPulse] = useState(0);
   const lyricsContainerRef = useRef<HTMLDivElement | null>(null);
   const lyricLineRefs = useRef<Array<HTMLDivElement | null>>([]);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -149,6 +150,39 @@ export default function Play() {
       });
     }
   }, [songAudioUrl, paused, loadingPipeline, showEnd, pipelineError]);
+
+  useEffect(() => {
+    const lastHitRef = { current: -1 };
+    let rafId = 0;
+    let mounted = true;
+
+    function frame(now: number) {
+      if (!mounted) return;
+      const hitAt = lastHitRef.current;
+      let next = 0;
+      if (hitAt > 0) {
+        const t = Math.max(0, (now - hitAt) / 260);
+        if (t <= 1) {
+          // Quick curved rise/fall pulse (0 -> 1 -> 0)
+          next = Math.pow(Math.sin(Math.PI * t), 1.15);
+        }
+      }
+      setBgPulse(next);
+      rafId = requestAnimationFrame(frame);
+    }
+
+    const onCueHit = () => {
+      lastHitRef.current = performance.now();
+    };
+
+    window.addEventListener('cue-hit', onCueHit);
+    rafId = requestAnimationFrame(frame);
+    return () => {
+      mounted = false;
+      window.removeEventListener('cue-hit', onCueHit);
+      cancelAnimationFrame(rafId);
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -271,8 +305,13 @@ export default function Play() {
     }
   }
 
+  const darkStop = `rgb(${Math.round(13 + bgPulse * 40)} ${Math.round(6 + bgPulse * 18)} ${Math.round(6 + bgPulse * 18)})`;
+  const bgStyle = {
+    background: `linear-gradient(to bottom, #462d2d, ${darkStop})`,
+  } as const;
+
   return (
-    <div className="relative h-screen w-screen overflow-hidden" style={{ background: 'linear-gradient(to bottom, #462d2d, #0d0606)' }}>
+    <div className="relative h-screen w-screen overflow-hidden" style={bgStyle}>
       <audio ref={audioRef} src={songAudioUrl ?? undefined} preload="auto" />
       <button
         className="absolute top-12 left-12 z-50 flex items-center justify-center rounded-md border-2"
