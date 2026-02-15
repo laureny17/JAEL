@@ -1,9 +1,11 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Scene } from '@/components/Scene';
+import { PoseDetector } from '@/components/PoseDetector';
 import { usePosePlayer } from '@/lib/pose-player';
+import { usePoseChecker } from '@/lib/use-pose-checker';
 import { TEST_SEQUENCE } from '@/lib/test-sequence';
 import { TEST_RIGHT_ARROWS, TEST_LEFT_ARROWS, ARROW_SEQUENCE_DURATION } from '@/lib/test-arrow-sequence';
 import { GameHUD } from '@/components/GameHUD';
@@ -14,57 +16,9 @@ function PosePlayer({ paused }: { paused: boolean }) {
   return null;
 }
 
-function CameraFeed() {
-  const videoRef = useRef<HTMLVideoElement | null>(null);
-
-  useEffect(() => {
-    let stream: MediaStream | null = null;
-    let cancelled = false;
-
-    async function start() {
-      try {
-        stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
-        if (cancelled) return;
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-          await videoRef.current.play();
-        }
-      } catch {
-        // Camera permissions denied or unavailable.
-      }
-    }
-
-    start();
-
-    return () => {
-      cancelled = true;
-      if (stream) {
-        stream.getTracks().forEach((track) => track.stop());
-      }
-    };
-  }, []);
-
-  return (
-    <div
-      className="absolute right-12 z-40 overflow-hidden"
-      style={{
-        bottom: '320px',
-        width: '280px',
-        height: '170px',
-        borderRadius: '12px',
-        border: '2px solid #462c2d',
-        backgroundColor: '#f8f4f2',
-      }}
-    >
-      <video
-        ref={videoRef}
-        className="w-full h-full object-cover"
-        style={{ transform: 'scaleX(-1)' }}
-        playsInline
-        muted
-      />
-    </div>
-  );
+function PoseChecker({ paused }: { paused: boolean }) {
+  usePoseChecker(TEST_SEQUENCE, paused);
+  return null;
 }
 
 export default function Play() {
@@ -168,8 +122,9 @@ export default function Play() {
       >
         {timerText}
       </div>
-      <CameraFeed />
+      <PoseDetector />
       <PosePlayer paused={paused} />
+      <PoseChecker paused={paused} />
       <GameHUD
         rightArrows={TEST_RIGHT_ARROWS}
         leftArrows={TEST_LEFT_ARROWS}
