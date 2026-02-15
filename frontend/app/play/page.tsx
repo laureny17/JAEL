@@ -146,9 +146,31 @@ export default function Play() {
     const playPromise = audio.play();
     if (playPromise && typeof playPromise.catch === 'function') {
       playPromise.catch(() => {
-        // Ignore autoplay policy errors; user can still interact and continue.
+        // Autoplay may be blocked; we retry on the next user interaction below.
       });
     }
+  }, [songAudioUrl, paused, loadingPipeline, showEnd, pipelineError]);
+
+  useEffect(() => {
+    if (!songAudioUrl || paused || loadingPipeline || showEnd || pipelineError) return;
+
+    const tryResume = () => {
+      const audio = audioRef.current;
+      if (!audio) return;
+      void audio.play().catch(() => {
+        // Ignore; browser may still reject until a stronger gesture.
+      });
+    };
+
+    window.addEventListener('pointerdown', tryResume, { passive: true });
+    window.addEventListener('keydown', tryResume);
+    window.addEventListener('touchstart', tryResume, { passive: true });
+
+    return () => {
+      window.removeEventListener('pointerdown', tryResume);
+      window.removeEventListener('keydown', tryResume);
+      window.removeEventListener('touchstart', tryResume);
+    };
   }, [songAudioUrl, paused, loadingPipeline, showEnd, pipelineError]);
 
   useEffect(() => {

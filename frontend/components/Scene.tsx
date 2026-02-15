@@ -8,7 +8,7 @@ import { Character } from './Character';
 export function Scene() {
   return (
     <Canvas
-      camera={{ position: [0, 80, 3200], fov: 30, near: 0.1, far: 7000 }}
+      camera={{ position: [0, 65, 300], fov: 34, near: 0.1, far: 7000 }}
       style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }}
       gl={{ alpha: true }}
       onCreated={({ gl }) => {
