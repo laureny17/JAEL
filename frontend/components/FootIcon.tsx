@@ -1,15 +1,11 @@
 import type { GridPosition } from '@/lib/types';
 
 const ARROW_MAP: Record<GridPosition, string | null> = {
-  TL: '/arrows/up left.svg',
   T:  '/arrows/up.svg',
-  TR: '/arrows/up right.svg',
   L:  '/arrows/left.svg',
   M:  null,
   R:  '/arrows/right.svg',
-  BL: '/arrows/down left.svg',
   B:  '/arrows/down.svg',
-  BR: '/arrows/down right.svg',
 };
 
 interface FootIconProps {

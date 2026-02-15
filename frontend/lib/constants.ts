@@ -63,26 +63,22 @@ export const STANCE_HALF_WIDTH = 8;
 // ---------------------------------------------------------------------------
 
 /**
- * Maps each 3x3 grid label to world-space X and Z offsets.
+ * Maps each grid label to world-space X and Z offsets.
  * Labels are from the CHARACTER's perspective (character faces +Z toward camera).
  *
  * Character's left = +X world (viewer's screen right — mirror effect)
  * Character's right = -X world (viewer's screen left)
  *
- *   TL  T  TR     (front — toward camera, +Z)
- *    L  M   R     (center)
- *   BL  B  BR     (back — away from camera, -Z)
+ *         T          (front — toward camera, +Z)
+ *      L  M  R       (center)
+ *         B          (back — away from camera, -Z)
  */
 export const GRID_WORLD_POSITIONS: Record<GridPosition, { x: number; z: number }> = {
-  TL: { x: STEP_WIDTH,  z: STEP_DEPTH },
   T:  { x: 0,           z: STEP_DEPTH },
-  TR: { x: -STEP_WIDTH, z: STEP_DEPTH },
   L:  { x: STEP_WIDTH,  z: 0 },
   M:  { x: 0,           z: 0 },
   R:  { x: -STEP_WIDTH, z: 0 },
-  BL: { x: STEP_WIDTH,  z: -STEP_DEPTH },
   B:  { x: 0,           z: -STEP_DEPTH },
-  BR: { x: -STEP_WIDTH, z: -STEP_DEPTH },
 };
 
 // ---------------------------------------------------------------------------
@@ -158,7 +154,7 @@ export const SPINE_BONE_NAMES = {
 // UI labels (used by ControlPanel — test-only, removable)
 // ---------------------------------------------------------------------------
 
-export const GRID_LABELS: GridPosition[] = ['TL', 'T', 'TR', 'L', 'M', 'R', 'BL', 'B', 'BR'];
+export const GRID_LABELS: GridPosition[] = ['T', 'L', 'M', 'R', 'B'];
 
 export const HAND_POSE_LABELS: Record<string, string> = {
   open: 'Open (5)',
