@@ -31,7 +31,7 @@ const TOLERANCE = {
 };
 
 /** Above this average error (deg), arm scoring is always zero. */
-const MAX_SCORABLE_DIFF = 58;
+const MAX_SCORABLE_DIFF = 75;
 const MAX_POINTS_PER_MOVE = 100;
 
 // ---------------------------------------------------------------------------
@@ -143,7 +143,8 @@ export function comparePose(target: PoseInput, detected: Partial<PoseInput>): Sc
   // Continuous points from error margin:
   // 0 points at MAX_SCORABLE_DIFF+, up to 100 at 0 diff.
   const normalized = Math.max(0, 1 - overallDiff / MAX_SCORABLE_DIFF);
-  const totalPoints = Math.round(MAX_POINTS_PER_MOVE * Math.pow(normalized, 1.8));
+  // More forgiving curve so moderate matches earn meaningful points.
+  const totalPoints = Math.round(MAX_POINTS_PER_MOVE * Math.pow(normalized, 0.9));
 
   let finalScore: Score = getScoreForDiff(overallDiff);
   if (totalPoints <= 0) finalScore = 'MISS';

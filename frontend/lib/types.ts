@@ -75,7 +75,7 @@ export interface PoseInput {
 // Internal state (mirrors PoseInput + provides individual setters for UI)
 // ---------------------------------------------------------------------------
 
-export interface PoseState extends PoseInput {}
+export type PoseState = PoseInput;
 
 export interface PoseActions {
   /** Apply an entire pose snapshot from the backend (batch update, single re-render). */
@@ -137,3 +137,12 @@ export interface ArrowNote {
 
 /** An ordered sequence of arrow notes for one foot lane. */
 export type ArrowSequence = ArrowNote[];
+
+/** A timed hand instruction shown in the HANDS lane. */
+export interface HandCue {
+  time: number;    // Seconds from start
+  label: string;   // Display text, e.g. "L: open | R: fist"
+}
+
+/** Ordered hand instruction sequence for the HANDS lane. */
+export type HandCueSequence = HandCue[];

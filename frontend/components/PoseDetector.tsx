@@ -17,21 +17,12 @@ const R_WRIST = 16;
 const L_HIP = 23;
 const R_HIP = 24;
 
-const KEY_INDICES = [
-  L_SHOULDER, R_SHOULDER, L_ELBOW, R_ELBOW, L_WRIST, R_WRIST, L_HIP, R_HIP,
-];
-
-// Arm chains for drawing connections: hip → shoulder → elbow → wrist
-const LEFT_CHAIN = [L_HIP, L_SHOULDER, L_ELBOW, L_WRIST];
-const RIGHT_CHAIN = [R_HIP, R_SHOULDER, R_ELBOW, R_WRIST];
-
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 
 export function PoseDetector() {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
   const landmarkerRef = useRef<PoseLandmarker | null>(null);
   const rafRef = useRef(0);
   const streamRef = useRef<MediaStream | null>(null);
@@ -176,9 +167,6 @@ export function PoseDetector() {
                 leftElbowAngle,
                 rightElbowAngle,
               });
-
-              drawOverlay(lm);
-
               frameCount++;
               if (frameCount === 1) {
                 console.log('[PoseDetector] First detection!', {
@@ -216,47 +204,6 @@ export function PoseDetector() {
   }, []);
 
   // -------------------------------------------------------------------------
-  // Draw the 8 key landmarks + arm chains on the canvas overlay
-  // (lightweight manual drawing — no dependency on DrawingUtils)
-  // -------------------------------------------------------------------------
-  function drawOverlay(lm: { x: number; y: number }[]) {
-    const canvas = canvasRef.current;
-    const video = videoRef.current;
-    if (!canvas || !video) return;
-
-    const w = video.videoWidth;
-    const h = video.videoHeight;
-    canvas.width = w;
-    canvas.height = h;
-
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    ctx.clearRect(0, 0, w, h);
-
-    // Draw arm connection lines
-    ctx.strokeStyle = '#00FF00';
-    ctx.lineWidth = 2;
-    for (const chain of [LEFT_CHAIN, RIGHT_CHAIN]) {
-      ctx.beginPath();
-      ctx.moveTo(lm[chain[0]].x * w, lm[chain[0]].y * h);
-      for (let i = 1; i < chain.length; i++) {
-        ctx.lineTo(lm[chain[i]].x * w, lm[chain[i]].y * h);
-      }
-      ctx.stroke();
-    }
-
-    // Draw key landmark dots
-    ctx.fillStyle = '#FF0000';
-    for (const idx of KEY_INDICES) {
-      const pt = lm[idx];
-      ctx.beginPath();
-      ctx.arc(pt.x * w, pt.y * h, 4, 0, Math.PI * 2);
-      ctx.fill();
-    }
-  }
-
-  // -------------------------------------------------------------------------
   // Render
   // -------------------------------------------------------------------------
   return (
@@ -285,11 +232,6 @@ export function PoseDetector() {
         style={{ transform: 'scaleX(-1)' }}
         playsInline
         muted
-      />
-      <canvas
-        ref={canvasRef}
-        className="absolute inset-0 w-full h-full object-cover pointer-events-none"
-        style={{ transform: 'scaleX(-1)' }}
       />
     </div>
   );

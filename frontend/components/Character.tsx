@@ -178,10 +178,12 @@ export function Character() {
 
     // Frame camera on the model - front-on view
     const halfHeight = TARGET_HEIGHT / 2;
-    camera.position.set(0, halfHeight, 300);
-    camera.lookAt(0, halfHeight, 0);
+    // Pull camera back and bias target slightly downward so the full body
+    // sits higher in frame above the bottom HUD.
+    camera.position.set(0, halfHeight + 10, 360);
+    camera.lookAt(0, halfHeight - 18, 0);
     if (controls) {
-      (controls as any).target?.set(0, halfHeight, 0);
+      (controls as any).target?.set(0, halfHeight - 18, 0);
       (controls as any).update?.();
     }
 

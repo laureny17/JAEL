@@ -9,6 +9,7 @@ const LENGTH_OPTIONS = [
   { id: 'medium', label: 'Medium', seconds: 90 },
   { id: 'long', label: 'Long', seconds: 120 },
 ];
+const RISE_AND_FALL_SONG_ID = '6991eb84fba63cc2e3ad092f';
 
 type SongListItem = {
   id: string;
@@ -121,13 +122,13 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen w-screen overflow-hidden lowercase" style={{ background: '#5a3a3b' }}>
-      <div className="px-6 pt-24 pb-10 flex flex-col items-center text-center">
+    <div className="min-h-screen w-screen overflow-x-hidden overflow-y-auto lowercase" style={{ background: '#5a3a3b' }}>
+      <div className="px-6 pt-16 pb-10 flex flex-col items-center text-center">
         <div className="text-5xl md:text-6xl font-bold mb-4 lowercase" style={{ color: '#f8f4f2' }}>
           step step learn
         </div>
         <div className="max-w-2xl text-base md:text-lg mb-6 lowercase" style={{ color: '#f8f4f2', opacity: 0.8 }}>
-          generate dance levels from your ideas and learn through movement — then play and compare scores with everyone.
+          generate dance levels from your ideas and learn through movement — then play and compare scores with everyone!
         </div>
         <div className="flex flex-wrap justify-center gap-3">
           <button
@@ -158,15 +159,15 @@ export default function Home() {
       </div>
 
       {mode === 'create' ? (
-        <div className="px-6 pb-14 flex justify-center">
+        <div className="px-6 pt-6 pb-14 flex justify-center">
           <div className="w-full max-w-3xl rounded-3xl border-2 p-6" style={{ backgroundColor: '#f8f4f2', borderColor: '#f8f4f2' }}>
-            <div className="text-sm mb-4 lowercase" style={{ color: '#462c2d' }}>
+            <div className="text-sm mb-2 lowercase" style={{ color: '#462c2d' }}>
               new to step step learn?{' '}
-              <Link href="/play" className="underline">
+              <Link href={`/play?songId=${RISE_AND_FALL_SONG_ID}`} className="underline">
                 try a short example here
               </Link>
             </div>
-            <div className="text-lg font-semibold mb-6 lowercase" style={{ color: '#f8f4f2' }}>
+            <div className="text-lg font-semibold mb-4 lowercase" style={{ color: '#f8f4f2' }}>
               generate a level
             </div>
 
@@ -236,53 +237,64 @@ export default function Home() {
           </div>
         </div>
       ) : (
-        <div className="px-6 pb-20">
-          <div className="text-lg font-semibold mb-6 lowercase" style={{ color: '#f8f4f2' }}>
-            community creations
+        <div className="px-10 md:px-16 lg:px-28 pt-10 pb-24">
+          <div className="max-w-7xl mx-auto">
+            <div className="text-lg font-semibold mb-6 lowercase" style={{ color: '#f8f4f2' }}>
+              community creations
+            </div>
+
+            {loadingSongs && (
+              <div className="text-sm" style={{ color: '#f8f4f2', opacity: 0.8 }}>
+                loading generated levels…
+              </div>
+            )}
+
+            {!loadingSongs && songsError && (
+              <div className="text-sm" style={{ color: '#f8f4f2' }}>
+                {songsError}
+              </div>
+            )}
+
+            {!loadingSongs && !songsError && songs.length === 0 && (
+              <div className="text-sm" style={{ color: '#f8f4f2', opacity: 0.8 }}>
+                no saved levels yet. generate one to get started.
+              </div>
+            )}
+
+            {!loadingSongs && !songsError && songs.length > 0 && (
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
+                {songs.map((song) => (
+                  <div key={song.id} className="rounded-2xl border-2 p-6" style={{ borderColor: '#462c2d', backgroundColor: '#f8f4f2' }}>
+                    <div className="text-base font-semibold lowercase" style={{ color: '#462c2d' }}>
+                      {(song.title || 'untitled').toLowerCase()}
+                    </div>
+                    <div className="text-xs mt-2 lowercase" style={{ color: '#462c2d', opacity: 0.7 }}>
+                      by community · {formatDuration(song.lengthSeconds)}
+                    </div>
+                    <div className="text-xs mt-2 lowercase" style={{ color: '#462c2d', opacity: 0.65 }}>
+                      {(song.prompt || '').slice(0, 96).toLowerCase()}
+                    </div>
+                    <div className="mt-5 flex gap-3">
+                      <Link
+                        href={`/level/${song.id}`}
+                        className="inline-flex px-4 py-2 rounded-full border-2 text-xs lowercase"
+                        style={{ borderColor: '#462c2d', color: '#462c2d' }}
+                      >
+                        view level
+                      </Link>
+                      <Link
+                        href={`/play?songId=${song.id}`}
+                        className="inline-flex px-4 py-2 rounded-full text-xs lowercase"
+                        style={{ backgroundColor: '#462c2d', color: '#f8f4f2' }}
+                      >
+                        play
+                      </Link>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
-
-          {loadingSongs && (
-            <div className="text-sm" style={{ color: '#f8f4f2', opacity: 0.8 }}>
-              loading generated levels…
-            </div>
-          )}
-
-          {!loadingSongs && songsError && (
-            <div className="text-sm" style={{ color: '#f8f4f2' }}>
-              {songsError}
-            </div>
-          )}
-
-          {!loadingSongs && !songsError && songs.length === 0 && (
-            <div className="text-sm" style={{ color: '#f8f4f2', opacity: 0.8 }}>
-              no saved levels yet. generate one to get started.
-            </div>
-          )}
-
-          {!loadingSongs && !songsError && songs.length > 0 && (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {songs.map((song) => (
-                <div key={song.id} className="rounded-2xl border-2 p-5" style={{ borderColor: '#462c2d', backgroundColor: '#f8f4f2' }}>
-                  <div className="text-base font-semibold lowercase" style={{ color: '#462c2d' }}>
-                    {(song.title || 'untitled').toLowerCase()}
-                  </div>
-                  <div className="text-xs mt-2 lowercase" style={{ color: '#462c2d', opacity: 0.7 }}>
-                    by community · {formatDuration(song.lengthSeconds)}
-                  </div>
-                  <div className="text-xs mt-1 lowercase" style={{ color: '#462c2d', opacity: 0.6 }}>
-                    {(song.prompt || '').slice(0, 72).toLowerCase()}
-                  </div>
-                  <Link
-                    href={`/play?songId=${song.id}`}
-                    className="inline-flex mt-4 px-4 py-2 rounded-full border-2 text-xs lowercase"
-                    style={{ borderColor: '#462c2d', color: '#462c2d' }}
-                  >
-                    play this
-                  </Link>
-                </div>
-              ))}
-            </div>
-          )}
         </div>
       )}
 

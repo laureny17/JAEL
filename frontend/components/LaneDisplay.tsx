@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useCallback } from 'react';
 import { FootIcon } from './FootIcon';
-import type { ArrowSequence } from '@/lib/types';
+import type { ArrowSequence, HandCueSequence } from '@/lib/types';
+import { useGameStore } from '@/lib/game-store';
 
 const SCROLL_SPEED = 120; // pixels per second
 const DASH_WIDTH = 12; // px per dash segment
@@ -10,11 +11,21 @@ const DASH_GAP = 8;   // px gap between dashes
 // Keep the dashed line continuous; arrows cover it with their own background.
 const LANE_COLOR = '#462c2d';
 const ARROW_SIZE = 56; // px (matches w-14)
+const HAND_CUE_WIDTH = 180;
 const ICON_POSITIONS = new Set(['T', 'L', 'R', 'B']);
+
+function signedLoopDelta(currentTime: number, eventTime: number, duration: number): number {
+  let dt = currentTime - eventTime;
+  if (duration <= 0) return dt;
+  while (dt > duration / 2) dt -= duration;
+  while (dt < -duration / 2) dt += duration;
+  return dt;
+}
 
 interface LaneDisplayProps {
   rightArrows: ArrowSequence;
   leftArrows: ArrowSequence;
+  handCues: HandCueSequence;
   duration: number;
   paused?: boolean;
 }
@@ -35,8 +46,6 @@ function ArrowLane({
   const sparkRef = useRef<HTMLDivElement>(null);
   const iconRefs = useRef<(HTMLDivElement | null)[]>([]);
   const prevCenterRef = useRef<number[]>([]);
-  const startTimeRef = useRef<number | null>(null);
-  const elapsedRef = useRef<number>(0);
 
   const setRef = useCallback(
     (idx: number) => (el: HTMLDivElement | null) => {
@@ -54,12 +63,8 @@ function ArrowLane({
 
     let rafId: number;
 
-    function tick(now: number) {
-      if (startTimeRef.current === null) startTimeRef.current = now;
-
-      const elapsed = (now - startTimeRef.current) / 1000;
-      elapsedRef.current = elapsed;
-      const currentTime = elapsed % duration;
+    function tick() {
+      const currentTime = useGameStore.getState().currentTime;
       const container = containerRef.current;
       const lane = laneRef.current;
       if (!container || !lane) {
@@ -79,17 +84,15 @@ function ArrowLane({
         const el = iconRefs.current[i];
         if (!el) continue;
 
-        let dt = currentTime - arrows[i].time;
-        if (dt < 0) dt += duration;
-
-        const leftEdge = dt * SCROLL_SPEED;
-        const centerX = leftEdge + ARROW_SIZE / 2;
+        const dt = signedLoopDelta(currentTime, arrows[i].time, duration);
+        const centerX = midLineX + dt * SCROLL_SPEED;
+        const leftEdge = centerX - ARROW_SIZE / 2;
 
         const prevCenter = prevCenterRef.current[i];
         const crossedMid = prevCenter !== undefined && prevCenter < midLineX && centerX >= midLineX;
         prevCenterRef.current[i] = centerX;
 
-        if (leftEdge >= 0 && leftEdge <= containerWidth - ARROW_SIZE) {
+        if (leftEdge >= -ARROW_SIZE && leftEdge <= containerWidth) {
           el.style.transform = `translateX(${leftEdge}px)`;
           el.style.display = 'block';
           let opacity = 1;
@@ -129,13 +132,9 @@ function ArrowLane({
       rafId = requestAnimationFrame(tick);
     }
 
-    if (startTimeRef.current === null) {
-      startTimeRef.current = performance.now() - elapsedRef.current * 1000;
-    }
     rafId = requestAnimationFrame(tick);
     return () => {
       cancelAnimationFrame(rafId);
-      startTimeRef.current = null;
     };
   }, [arrows, duration, paused]);
 
@@ -190,10 +189,27 @@ function ArrowLane({
   );
 }
 
-function DashLane({ label, duration, paused = false }: { label: string; duration: number; paused?: boolean }) {
+function HandCueLane({
+  label,
+  cues,
+  duration,
+  paused = false,
+}: {
+  label: string;
+  cues: HandCueSequence;
+  duration: number;
+  paused?: boolean;
+}) {
+  const containerRef = useRef<HTMLDivElement>(null);
   const laneRef = useRef<HTMLDivElement>(null);
-  const startTimeRef = useRef<number | null>(null);
-  const elapsedRef = useRef<number>(0);
+  const cueRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const prevCenterRef = useRef<number[]>([]);
+  const setRef = useCallback(
+    (idx: number) => (el: HTMLDivElement | null) => {
+      cueRefs.current[idx] = el;
+    },
+    []
+  );
 
   useEffect(() => {
     if (duration === 0) return;
@@ -201,40 +217,65 @@ function DashLane({ label, duration, paused = false }: { label: string; duration
 
     let rafId: number;
 
-    function tick(now: number) {
-      if (startTimeRef.current === null) startTimeRef.current = now;
-
-      const elapsed = (now - startTimeRef.current) / 1000;
-      elapsedRef.current = elapsed;
-      const currentTime = elapsed % duration;
+    function tick() {
+      const currentTime = useGameStore.getState().currentTime;
+      const container = containerRef.current;
       const lane = laneRef.current;
-      if (!lane) {
+      if (!lane || !container) {
         rafId = requestAnimationFrame(tick);
         return;
       }
+      const containerWidth = container.clientWidth;
+      const midLineX = containerWidth / 2;
 
       const bgOffset = currentTime * SCROLL_SPEED;
       lane.style.setProperty('--dash-offset', `${bgOffset}px`);
 
+      for (let i = 0; i < cues.length; i++) {
+        const el = cueRefs.current[i];
+        if (!el) continue;
+
+        const dt = signedLoopDelta(currentTime, cues[i].time, duration);
+        // Hand cue timing: event triggers when the cue's RIGHT edge reaches
+        // the center bar (not its center/left edge).
+        const rightEdge = midLineX + dt * SCROLL_SPEED;
+        const leftEdge = rightEdge - HAND_CUE_WIDTH;
+        const centerX = leftEdge + HAND_CUE_WIDTH / 2;
+        prevCenterRef.current[i] = centerX;
+
+        if (leftEdge >= -HAND_CUE_WIDTH && leftEdge <= containerWidth) {
+          el.style.transform = `translateX(${leftEdge}px)`;
+          el.style.display = 'block';
+          // Prioritize readability of upcoming cues on the right by drawing
+          // farther-right cards above farther-left cards.
+          el.style.zIndex = `${1000 + Math.round(centerX)}`;
+          let opacity = 1;
+          if (centerX >= midLineX) {
+            const t = Math.min(1, (centerX - midLineX) / (containerWidth - midLineX));
+            opacity = 0.45 * (1 - t);
+          }
+          el.style.opacity = `${opacity}`;
+        } else {
+          el.style.opacity = '0';
+          el.style.display = 'none';
+        }
+      }
+
       rafId = requestAnimationFrame(tick);
     }
 
-    if (startTimeRef.current === null) {
-      startTimeRef.current = performance.now() - elapsedRef.current * 1000;
-    }
     rafId = requestAnimationFrame(tick);
     return () => {
       cancelAnimationFrame(rafId);
-      startTimeRef.current = null;
     };
-  }, [duration, paused]);
+  }, [cues, duration, paused]);
 
   return (
     <div className="flex items-center h-16">
       <span className="w-36 text-lg font-bold shrink-0 pr-4" style={{ color: LANE_COLOR }}>
         {label}
       </span>
-      <div className="relative flex-1 h-full overflow-hidden">
+      <div ref={containerRef} className="relative flex-1 h-full overflow-hidden">
         <div ref={laneRef} className="absolute top-1/2 -translate-y-1/2 h-0.5 w-full">
           <div
             className="absolute inset-0"
@@ -257,12 +298,28 @@ function DashLane({ label, duration, paused = false }: { label: string; duration
             }}
           />
         </div>
+        {cues.map((cue, i) => (
+          <div
+            key={`${cue.time}-${cue.label}`}
+            ref={setRef(i)}
+            className="absolute top-1/2 -translate-y-1/2 z-10 px-3 py-1 rounded-md border text-[11px] font-semibold uppercase tracking-wide whitespace-nowrap"
+            style={{
+              width: `${HAND_CUE_WIDTH}px`,
+              backgroundColor: '#f8f4f2',
+              borderColor: LANE_COLOR,
+              color: LANE_COLOR,
+              opacity: 0,
+            }}
+          >
+            {cue.label}
+          </div>
+        ))}
       </div>
     </div>
   );
 }
 
-export function LaneDisplay({ rightArrows, leftArrows, duration, paused }: LaneDisplayProps) {
+export function LaneDisplay({ rightArrows, leftArrows, handCues, duration, paused }: LaneDisplayProps) {
   return (
     <div className="absolute bottom-12 left-12 right-12 rounded-2xl flex flex-col justify-center gap-3 px-8 py-5" style={{ backgroundColor: '#f8f4f2', border: `2px solid ${LANE_COLOR}` }}>
       {/* Combined label divider */}
@@ -289,8 +346,7 @@ export function LaneDisplay({ rightArrows, leftArrows, duration, paused }: LaneD
       <ArrowLane label="RIGHT FOOT" arrows={rightArrows} duration={duration} paused={paused} />
       <ArrowLane label="LEFT FOOT" arrows={leftArrows} duration={duration} paused={paused} />
 
-      {/* H lane — dashed line only for now */}
-      <DashLane label="HANDS" duration={duration} paused={paused} />
+      <HandCueLane label="HANDS" cues={handCues} duration={duration} paused={paused} />
     </div>
   );
 }

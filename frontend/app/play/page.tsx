@@ -8,7 +8,7 @@ import { usePosePlayer } from '@/lib/pose-player';
 import { usePoseChecker } from '@/lib/use-pose-checker';
 import { GameHUD } from '@/components/GameHUD';
 import { useGameStore } from '@/lib/game-store';
-import type { ArrowSequence, GridPosition, PoseSequence } from '@/lib/types';
+import type { ArrowSequence, GridPosition, HandCueSequence, PoseSequence } from '@/lib/types';
 
 type PipelineResult = {
   lyrics?: {
@@ -59,6 +59,23 @@ function buildFootArrows(sequence: PoseSequence, foot: 'leftFoot' | 'rightFoot')
   return arrows;
 }
 
+function normalizePoseSequence(sequence: PoseSequence): PoseSequence {
+  return [...sequence]
+    .filter((keyframe) => Number.isFinite(keyframe.time) && keyframe.time >= 0)
+    .sort((a, b) => a.time - b.time);
+}
+
+function buildHandCues(sequence: PoseSequence): HandCueSequence {
+  if (sequence.length === 0) return [];
+
+  // Keep every timed instruction so this lane mirrors the exact hand sequence
+  // driving the model, without dropping repeated or rapid changes.
+  return sequence.map((keyframe) => ({
+    time: keyframe.time,
+    label: `L: ${keyframe.pose.leftHandShape} | R: ${keyframe.pose.rightHandShape}`,
+  }));
+}
+
 function toLyricLines(rawLyrics?: string): string[] {
   if (!rawLyrics) return [];
 
@@ -79,10 +96,13 @@ export default function Play() {
   const [sequence, setSequence] = useState<PoseSequence>([]);
   const [rightArrows, setRightArrows] = useState<ArrowSequence>([]);
   const [leftArrows, setLeftArrows] = useState<ArrowSequence>([]);
+  const [handCues, setHandCues] = useState<HandCueSequence>([]);
   const [arrowDuration, setArrowDuration] = useState(1);
   const [lyrics, setLyrics] = useState<string[]>([]);
+  const [songAudioUrl, setSongAudioUrl] = useState<string | null>(null);
   const lyricsContainerRef = useRef<HTMLDivElement | null>(null);
   const lyricLineRefs = useRef<Array<HTMLDivElement | null>>([]);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
   const searchParams = useSearchParams();
   const router = useRouter();
   const score = useGameStore((s) => s.score);
@@ -111,6 +131,24 @@ export default function Play() {
     const top = activeLine.offsetTop - container.offsetTop;
     container.scrollTo({ top, behavior: 'smooth' });
   }, [currentLine]);
+
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    const shouldPlay = Boolean(songAudioUrl) && !paused && !loadingPipeline && !showEnd && !pipelineError;
+    if (!shouldPlay) {
+      audio.pause();
+      return;
+    }
+
+    const playPromise = audio.play();
+    if (playPromise && typeof playPromise.catch === 'function') {
+      playPromise.catch(() => {
+        // Ignore autoplay policy errors; user can still interact and continue.
+      });
+    }
+  }, [songAudioUrl, paused, loadingPipeline, showEnd, pipelineError]);
 
   useEffect(() => {
     let cancelled = false;
@@ -143,12 +181,14 @@ export default function Play() {
 
         const songJson = (await songResponse.json()) as SongDetailResponse;
         const data: PipelineResult = songJson?.song ?? {};
+        const nextAudioUrl = data.track?.audioUrl || data.track?.audio_url || null;
 
-        const nextSequence = Array.isArray(data.poses)
+        const rawSequence = Array.isArray(data.poses)
           ? data.poses
           : Array.isArray(data.poseSequence)
             ? data.poseSequence
             : [];
+        const nextSequence = normalizePoseSequence(rawSequence);
 
         if (nextSequence.length === 0) {
           throw new Error('This song has no saved choreography yet.');
@@ -156,6 +196,7 @@ export default function Play() {
 
         const nextRightArrows = buildFootArrows(nextSequence, 'rightFoot');
         const nextLeftArrows = buildFootArrows(nextSequence, 'leftFoot');
+        const nextHandCues = buildHandCues(nextSequence);
         const nextDuration = Math.max(1, Math.ceil(nextSequence[nextSequence.length - 1]?.time ?? 1));
 
         const lyricLines = toLyricLines(data.lyrics?.lyrics);
@@ -166,15 +207,18 @@ export default function Play() {
           setSequence(nextSequence);
           setRightArrows(nextRightArrows);
           setLeftArrows(nextLeftArrows);
+          setHandCues(nextHandCues);
           setArrowDuration(nextDuration);
           setSecondsLeft(nextDuration);
           setShowEnd(false);
           setPaused(false);
+          setSongAudioUrl(nextAudioUrl);
           setLyrics(lyricLines);
         }
       } catch (error) {
         if (!cancelled) {
           setPipelineError(error instanceof Error ? error.message : 'Failed to load choreography.');
+          setSongAudioUrl(null);
         }
       } finally {
         if (!cancelled) {
@@ -213,11 +257,15 @@ export default function Play() {
     if (!songId || !playerName.trim()) return;
     setSavingScore(true);
     try {
-      await fetch(`/api/songs/${songId}/scores`, {
+      const response = await fetch(`/api/songs/${songId}/scores`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: playerName.trim(), score }),
       });
+      if (!response.ok) {
+        throw new Error(`Failed to save score (${response.status})`);
+      }
+      router.push('/');
     } finally {
       setSavingScore(false);
     }
@@ -225,6 +273,7 @@ export default function Play() {
 
   return (
     <div className="relative h-screen w-screen overflow-hidden" style={{ background: 'linear-gradient(to bottom, #462d2d, #0d0606)' }}>
+      <audio ref={audioRef} src={songAudioUrl ?? undefined} preload="auto" />
       <button
         className="absolute top-12 left-12 z-50 flex items-center justify-center rounded-md border-2"
         style={{ borderColor: '#462c2d', backgroundColor: '#f8f4f2', width: '44px', height: '36px' }}
@@ -289,6 +338,7 @@ export default function Play() {
       <GameHUD
         rightArrows={rightArrows}
         leftArrows={leftArrows}
+        handCues={handCues}
         arrowDuration={arrowDuration}
         paused={paused || loadingPipeline || showEnd}
       />
@@ -329,7 +379,10 @@ export default function Play() {
           className="absolute inset-0 z-50 flex items-center justify-center"
           style={{ backgroundColor: 'rgba(70, 44, 45, 0.5)' }}
         >
-          <div className="flex flex-col items-center gap-4">
+          <div
+            className="rounded-2xl border-2 p-6 w-[300px] flex flex-col items-center gap-4"
+            style={{ borderColor: '#f8f4f2', backgroundColor: '#462c2d' }}
+          >
             <button
               className="px-6 py-3 rounded-md border-2 text-lg"
               style={{ borderColor: '#f8f4f2', color: '#f8f4f2', backgroundColor: 'transparent' }}
@@ -357,7 +410,7 @@ export default function Play() {
         >
           <div
             className="rounded-2xl border-2 p-6 w-[320px] flex flex-col gap-4"
-            style={{ borderColor: '#f8f4f2', color: '#f8f4f2' }}
+            style={{ borderColor: '#f8f4f2', color: '#f8f4f2', backgroundColor: '#462c2d' }}
           >
             <div className="text-lg font-semibold text-center">Level Complete</div>
             <div className="text-sm text-center">Score: {score}</div>
