@@ -66,8 +66,8 @@ export const TEST_SEQUENCE: PoseSequence = [
       rightElbowAngle: 120,
       leftHandShape: 'heart',
       rightHandShape: 'heart',
-      leftFoot: 'TL',
-      rightFoot: 'BR',
+      leftFoot: 'L',
+      rightFoot: 'R',
     },
   },
   {

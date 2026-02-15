@@ -13,18 +13,18 @@
  *       180° = fully extended (straight arm).
  *
  * FEET:
- *   - 3x3 grid positions: TL, T, TR, L, M, R, BL, B, BR
+ *   - 5 grid positions: T, L, M, R, B (cross pattern, no diagonals)
  *   - Both feet can only overlap when both are M (middle/neutral)
- *   - Front row (TL, T, TR): heel stance
- *   - Middle row (L, M, R): flat foot
- *   - Back row (BL, B, BR): toe stance
+ *   - T (back): heel stance
+ *   - L, M, R (middle row): flat foot
+ *   - B (front): toe stance
  */
 
 // ---------------------------------------------------------------------------
 // Primitives
 // ---------------------------------------------------------------------------
 
-export type GridPosition = 'TL' | 'T' | 'TR' | 'L' | 'M' | 'R' | 'BL' | 'B' | 'BR';
+export type GridPosition = 'T' | 'L' | 'M' | 'R' | 'B';
 
 export type HandPoseType =
   | 'open'    // All fingers extended (5)
@@ -56,7 +56,7 @@ export type HandPoseType =
  *   "leftHandShape":      "open",
  *   "rightHandShape":     "fist",
  *   "leftFoot":           "M",
- *   "rightFoot":          "TR"
+ *   "rightFoot":          "R"
  * }
  * ```
  */

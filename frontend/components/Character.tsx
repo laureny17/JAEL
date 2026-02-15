@@ -203,9 +203,9 @@ export function Character() {
     const desiredRightFoot = gridToFootWorld(state.rightFoot, 'right');
 
     // Compute desired foot pitches per grid row:
-    //   Back row (BL/B/BR): tiptoe — steep downward pitch, ankle raised
+    //   Back (B): tiptoe — steep downward pitch, ankle raised
     //   Middle row (L/M/R): flat — no pitch
-    //   Front row (TL/T/TR): heel stance — toes angled upward
+    //   Front (T): heel stance — toes angled upward
     const TIPTOE_PITCH = -1.1;  // ~63° below horizontal (clear tiptoe)
     const FLAT_PITCH = -0.5;    // ~29° correction for visually flat foot
     const HEEL_PITCH = 0.55;    // ~32° above horizontal (clear heel stance)
@@ -213,10 +213,10 @@ export function Character() {
 
     let desiredLeftPitch = FLAT_PITCH;
     let desiredRightPitch = FLAT_PITCH;
-    if (['BL', 'B', 'BR'].includes(state.leftFoot)) desiredLeftPitch = TIPTOE_PITCH;
-    else if (['TL', 'T', 'TR'].includes(state.leftFoot)) desiredLeftPitch = HEEL_PITCH;
-    if (['BL', 'B', 'BR'].includes(state.rightFoot)) desiredRightPitch = TIPTOE_PITCH;
-    else if (['TL', 'T', 'TR'].includes(state.rightFoot)) desiredRightPitch = HEEL_PITCH;
+    if (state.leftFoot === 'B') desiredLeftPitch = TIPTOE_PITCH;
+    else if (state.leftFoot === 'T') desiredLeftPitch = HEEL_PITCH;
+    if (state.rightFoot === 'B') desiredRightPitch = TIPTOE_PITCH;
+    else if (state.rightFoot === 'T') desiredRightPitch = HEEL_PITCH;
 
     // Raise ankle for tiptoe so the toes stay near ground level instead of
     // clipping through the floor. The raise = foot bone length * sin(pitch).

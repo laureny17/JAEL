@@ -59,30 +59,21 @@ Arms are rendered in the 2D frontal plane (no depth). The shoulder angle rotates
 
 ### Foot Positions
 
-Feet are placed on a 3x3 grid. The grid is oriented from the character's perspective (facing the camera):
+Feet are placed on a cross-shaped grid (no diagonals). The grid is oriented from the character's perspective (facing the camera):
 
 ```
-  Left   Center   Right
-  ┌──────┬──────┬──────┐
-  │  TL  │  T   │  TR  │  Back row (tiptoe stance)
-  ├──────┼──────┼──────┤
-  │  L   │  M   │  R   │  Middle row (flat foot)
-  ├──────┼──────┼──────┤
-  │  BL  │  B   │  BR  │  Front row (heel stance)
-  └──────┴──────┴──────┘
+         T          Back (tiptoe stance)
+      L  M  R       Middle (flat foot)
+         B          Front (heel stance)
 ```
 
 | Value | Position |
 |---|---|
-| `"TL"` | Top-left (back-left, tiptoe) |
 | `"T"` | Top-center (back, tiptoe) |
-| `"TR"` | Top-right (back-right, tiptoe) |
 | `"L"` | Middle-left (flat foot) |
 | `"M"` | Middle-center (neutral stance, flat foot) |
 | `"R"` | Middle-right (flat foot) |
-| `"BL"` | Bottom-left (front-left, heel) |
 | `"B"` | Bottom-center (front, heel) |
-| `"BR"` | Bottom-right (front-right, heel) |
 
 **Constraints:**
 - Both feet on the same position is only allowed when both are `"M"`.
