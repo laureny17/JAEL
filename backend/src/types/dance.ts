@@ -30,6 +30,5 @@ export type LyricFragmentResult = {
 export type DanceSong = {
   lyrics: LyricResult;
   track: SunoTrackResult;
-  stepChart?: DanceMove[];
-  lyricFragments?: LyricFragmentResult;
+  poses?: Array<any>;
 };

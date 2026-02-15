@@ -11,7 +11,7 @@ export async function startDanceProject(topic: string, length: 60 | 90 | 120, mo
   console.log("\n🎵 Step 1: Generating lyrics with Claude...\n");
 
   // Step 1: Generate lyrics using Claude
-  const lyrics = await generateLyrics(topic, mood, genre);
+  const lyrics = await generateLyrics(topic, length, mood, genre);
 
   console.log(`✅ Generated lyrics: "${lyrics.title}"\n`);
   console.log("Lyrics preview:");
@@ -136,6 +136,7 @@ ${mood ? `Mood: ${mood}\n` : ''}${genre ? `Genre: ${genre}\n` : ''}`;
   console.log("\n💃 Step 5: Generating 3D animation poses with Claude...");
   const prompt = poseGenerationPrompt(fragmentTimestamps);
   const poses = await generatePoses(prompt);
+  song.poses = poses;
   console.log(`✅ Generated ${poses.length} poses`);
   console.log("Sample pose:", poses[0]);
 
