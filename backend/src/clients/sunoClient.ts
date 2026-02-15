@@ -34,6 +34,7 @@ function buildSunoUrl(endpoint: string): string {
 
 export async function createSunoTrackFromLyrics(
   lyrics: LyricResult,
+  length: 60 | 90 | 120,
   genre?: string,
   audienceDescriptor?: string
 ): Promise<SunoTrackResult> {
@@ -44,7 +45,7 @@ export async function createSunoTrackFromLyrics(
   // Step 1: Generate the track using Suno API
   const payload: SunoGeneratePayload = {
     prompt: `${lyrics.lyrics}${audienceSuffix}`,
-    tags: genre || undefined
+    tags: `${genre || ''}, length:${length} seconds`
   };
 
   console.log("Calling Suno API with payload:", JSON.stringify(payload, null, 2));

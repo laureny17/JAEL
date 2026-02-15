@@ -46,21 +46,17 @@ function extractJsonArray(rawText: string): string {
  */
 export async function generateLyrics(
   topic: string,
+  length: 60 | 90 | 120,
   mood?: string,
   genre?: string
 ): Promise<LyricResult> {
   const prompt = `Generate SHORT, punchy song lyrics about "${topic}"${mood ? ` with a ${mood} mood` : ''}${genre ? ` in the ${genre} genre` : ''}.
 
-This is for a rhythm dance game (like Just Dance), so keep it under 60 seconds of singable content.
+This is for a rhythm dance game (like Just Dance).
 
-Follow this compact structure:
-- Verse 1 (4 lines) — laid-back energy, sets the scene
-- Chorus (4 lines) — big hook, peak energy
-- Verse 2 (4 lines) — shift the vibe: faster flow, higher intensity, or a new angle on the topic
-- Chorus (4 lines) — same hook, peak energy
+Keep the length within the range ${(length - 10) / 6} to ${(length - 10) / 4} lines of singable content.
 
 Keep lines short and rhythmic — easy to move to. Favor repetition and catchy hooks over complexity.
-Verse 1 and Verse 2 should feel distinct — different rhythm, energy, or perspective.
 
 Return ONLY a JSON object with this exact format (no markdown, no extra text):
 {

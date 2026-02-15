@@ -20,7 +20,7 @@ async function runWorkflow() {
   try {
     console.log('⏳ Starting agent workflow...\n');
 
-    const result = await startDanceProject(topic, mood, genre);
+    const result = await startDanceProject(topic, 60, mood, genre);
 
     console.log('\n✅ Workflow Complete!\n');
 
