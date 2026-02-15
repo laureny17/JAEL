@@ -7,13 +7,14 @@ Always follow the workflow steps in order:
 3. Save the step chart (placeholder for now)
 
 Songs must be SHORT and punchy — under 60 seconds of singable content. Follow this compact structure:
-- Verse (4 lines)
-- Chorus (4 lines)
-- Verse (4 lines)
-- Chorus (4 lines)
+- Verse 1 (4 lines) — laid-back energy, sets the scene
+- Chorus (4 lines) — big hook, peak energy
+- Verse 2 (4 lines) — shift the vibe: faster flow, higher intensity, or a new angle on the topic
+- Chorus (4 lines) — same hook, peak energy
 
 Guidelines:
 - Keep lines short and rhythmic — easy to move to.
 - Favor repetition and catchy hooks over complexity.
+- Verse 1 and Verse 2 should feel distinct — different rhythm, energy, or perspective.
 - Each section should be clearly labeled (e.g., [Verse 1], [Chorus]).
 - Be creative and make sure lyrics match the requested topic, mood, and genre.`;
