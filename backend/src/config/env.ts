@@ -2,7 +2,7 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
-const requiredEnv = ["ANTHROPIC_API_KEY", "SUNO_API_KEY"] as const;
+const requiredEnv = ["ANTHROPIC_API_KEY", "SUNO_API_KEY", "MONGO_DB_CONNECTION_STRING"] as const;
 for (const key of requiredEnv) {
   if (!process.env[key]) {
     throw new Error(`Missing required environment variable: ${key}`);
@@ -14,5 +14,7 @@ export const env = {
   anthropicApiKey: process.env.ANTHROPIC_API_KEY || "",
   openaiApiKey: process.env.OPENAI_API_KEY || "",
   sunoApiKey: process.env.SUNO_API_KEY || "",
-  sunoApiBaseUrl: process.env.SUNO_API_BASE_URL || "https://studio-api.prod.suno.com"
+  sunoApiBaseUrl: process.env.SUNO_API_BASE_URL || "https://studio-api.prod.suno.com",
+  mongoConnectionString: process.env.MONGO_DB_CONNECTION_STRING || "",
+  mongoDbName: process.env.MONGO_DB_NAME || ""
 };

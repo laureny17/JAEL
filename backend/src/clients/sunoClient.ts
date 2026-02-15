@@ -29,11 +29,16 @@ type SunoGenerateResponse = {
 
 export async function createSunoTrackFromLyrics(
   lyrics: LyricResult,
-  genre?: string
+  genre?: string,
+  audienceDescriptor?: string
 ): Promise<SunoTrackResult> {
+  const audienceSuffix = audienceDescriptor?.trim()
+    ? `\n\nAudience descriptor (written as an audience descriptor): ${audienceDescriptor.trim()}`
+    : "";
+
   // Step 1: Generate the track using Suno API
   const payload: SunoGeneratePayload = {
-    prompt: lyrics.lyrics,
+    prompt: `${lyrics.lyrics}${audienceSuffix}`,
     tags: genre || undefined
   };
 
