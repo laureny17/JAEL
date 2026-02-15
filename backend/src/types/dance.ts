@@ -32,4 +32,6 @@ export type DanceSong = {
   track: SunoTrackResult;
   stepChart?: DanceMove[];
   lyricFragments?: LyricFragmentResult;
+  fragmentTimestamps?: Record<string, number>;
+  poses?: Array<any>;
 };

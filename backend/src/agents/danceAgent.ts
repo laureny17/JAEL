@@ -90,12 +90,6 @@ ${mood ? `Mood: ${mood}\n` : ''}${genre ? `Genre: ${genre}\n` : ''}`;
   }
   console.log();
 
-  // Step 3: Return the complete workflow result
-  const song: DanceSong = {
-    lyrics,
-    track: finalClipData
-  };
-
   // Step 3: Transcribe and analyze audio
   if (!finalAudioUrl) {
     throw new Error("No audio URL available from Suno");
@@ -159,6 +153,14 @@ ${mood ? `Mood: ${mood}\n` : ''}${genre ? `Genre: ${genre}\n` : ''}`;
   const posesPath = path.join(runDir, 'poses.json');
   fs.writeFileSync(posesPath, JSON.stringify(poses, null, 2));
   console.log(`✅ Poses saved: ${posesPath}`);
+
+  // Assemble complete workflow result
+  const song: DanceSong = {
+    lyrics,
+    track: finalClipData,
+    fragmentTimestamps,
+    poses,
+  };
 
   // Save complete song data
   const songPath = path.join(runDir, 'song.json');

@@ -27,6 +27,11 @@ type SunoGenerateResponse = {
   };
 };
 
+function buildSunoUrl(endpoint: string): string {
+  const baseUrl = env.sunoApiBaseUrl.endsWith("/") ? env.sunoApiBaseUrl : `${env.sunoApiBaseUrl}/`;
+  return `${baseUrl}${endpoint}`;
+}
+
 export async function createSunoTrackFromLyrics(
   lyrics: LyricResult,
   genre?: string,
@@ -44,7 +49,10 @@ export async function createSunoTrackFromLyrics(
 
   console.log("Calling Suno API with payload:", JSON.stringify(payload, null, 2));
 
-  const response = await fetch(`${env.sunoApiBaseUrl}generate`, {
+  const generateUrl = buildSunoUrl("generate");
+  console.log(`Suno generate URL: ${generateUrl}`);
+
+  const response = await fetch(generateUrl, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -74,9 +82,7 @@ export async function createSunoTrackFromLyrics(
 
 // polling for status
 export async function getSunoTrackStatus(trackId: string): Promise<SunoTrackResult> {
-  // 1. Ensure slash safety
-  const baseUrl = env.sunoApiBaseUrl.endsWith('/') ? env.sunoApiBaseUrl : `${env.sunoApiBaseUrl}/`;
-  const url = `${baseUrl}clips?ids=${trackId}`;
+  const url = buildSunoUrl(`clips?ids=${trackId}`);
 
   const response = await fetch(url, {
     headers: {

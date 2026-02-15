@@ -21,6 +21,7 @@ export default function Home() {
   const [audience, setAudience] = useState('');
   const [lengthId, setLengthId] = useState('short');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [mode, setMode] = useState<'create' | 'play' | null>(null);
 
   const length = LENGTH_OPTIONS.find((opt) => opt.id === lengthId) ?? LENGTH_OPTIONS[0];
 
@@ -54,49 +55,77 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen w-screen overflow-hidden" style={{ background: 'linear-gradient(to bottom, #f8f4f2, #e7ddd7)' }}>
-      <div className="px-12 py-10 flex items-center justify-between">
-        <div className="text-2xl font-bold" style={{ color: '#462c2d' }}>
-          JAEL
+    <div className="min-h-screen w-screen overflow-hidden lowercase" style={{ background: '#5a3a3b' }}>
+      <div className="px-6 pt-24 pb-10 flex flex-col items-center text-center">
+        <div className="text-5xl md:text-6xl font-bold mb-4 lowercase" style={{ color: '#f8f4f2' }}>
+          step step learn
         </div>
-        <Link
-          href="/play"
-          className="px-5 py-2 rounded-full border-2 text-sm"
-          style={{ borderColor: '#462c2d', color: '#462c2d' }}
-        >
-          Try Demo
-        </Link>
+        <div className="max-w-2xl text-base md:text-lg mb-6 lowercase" style={{ color: '#f8f4f2', opacity: 0.8 }}>
+          generate dance levels from your ideas and learn through movement — then play and compare scores with everyone.
+        </div>
+        <div className="flex flex-wrap justify-center gap-3">
+          <button
+            type="button"
+            className="px-5 py-2 rounded-full border-2 text-sm lowercase"
+            style={{
+              borderColor: '#462c2d',
+              backgroundColor: mode === 'create' ? '#462c2d' : '#f8f4f2',
+              color: mode === 'create' ? '#f8f4f2' : '#462c2d',
+            }}
+            onClick={() => setMode('create')}
+          >
+            create new level
+          </button>
+          <button
+            type="button"
+            className="px-5 py-2 rounded-full border-2 text-sm lowercase"
+            style={{
+              borderColor: '#462c2d',
+              backgroundColor: mode === 'play' ? '#462c2d' : '#f8f4f2',
+              color: mode === 'play' ? '#f8f4f2' : '#462c2d',
+            }}
+            onClick={() => setMode('play')}
+          >
+            play existing levels
+          </button>
+        </div>
       </div>
 
-      <div className="px-12 grid grid-cols-1 lg:grid-cols-[1.2fr_0.8fr] gap-12 pb-16">
-        <div className="rounded-3xl border-2 p-8" style={{ backgroundColor: '#fffdfb', borderColor: '#462c2d' }}>
-          <div className="text-lg font-semibold mb-6" style={{ color: '#462c2d' }}>
-            Generate A Level
-          </div>
+      {mode === 'create' ? (
+        <div className="px-6 pb-14 flex justify-center">
+          <div className="w-full max-w-3xl rounded-3xl border-2 p-6" style={{ backgroundColor: '#f8f4f2', borderColor: '#f8f4f2' }}>
+            <div className="text-sm mb-4 lowercase" style={{ color: '#462c2d' }}>
+              new to step step learn?{' '}
+              <Link href="/play" className="underline">
+                try a short example here
+              </Link>
+            </div>
+            <div className="text-lg font-semibold mb-6 lowercase" style={{ color: '#f8f4f2' }}>
+              generate a level
+            </div>
 
-          <label className="block text-sm mb-2" style={{ color: '#462c2d' }}>
-            Prompt
-          </label>
-          <textarea
-            value={prompt}
-            onChange={(event) => setPrompt(event.target.value.slice(0, MAX_PROMPT))}
-            className="w-full rounded-xl border-2 p-4 text-sm resize-none"
-            style={{ borderColor: '#462c2d', color: '#462c2d', backgroundColor: '#f8f4f2' }}
-            rows={2}
-            placeholder="Describe the topic you would like to learn about."
-          />
+            <label className="block text-sm mb-2 lowercase" style={{ color: '#462c2d' }}>
+              prompt
+            </label>
+            <textarea
+              value={prompt}
+              onChange={(event) => setPrompt(event.target.value.slice(0, MAX_PROMPT))}
+              className="w-full rounded-xl border-2 p-4 text-sm resize-none lowercase"
+              style={{ borderColor: '#462c2d', color: '#462c2d', backgroundColor: '#f8f4f2' }}
+              rows={2}
+              placeholder="describe the topic you would like to learn about."
+            />
 
-          <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label className="block text-sm mb-2" style={{ color: '#462c2d' }}>
-                Song Length
+            <div className="mt-6">
+              <label className="block text-sm mb-2 lowercase" style={{ color: '#462c2d' }}>
+                song length
               </label>
-              <div className="flex gap-3">
+              <div className="flex flex-wrap gap-3">
                 {LENGTH_OPTIONS.map((option) => (
                   <button
                     key={option.id}
                     type="button"
-                    className="px-4 py-2 rounded-full border-2 text-sm"
+                    className="px-4 py-2 rounded-full border-2 text-sm lowercase"
                     style={{
                       borderColor: '#462c2d',
                       backgroundColor: lengthId === option.id ? '#462c2d' : '#f8f4f2',
@@ -104,73 +133,62 @@ export default function Home() {
                     }}
                     onClick={() => setLengthId(option.id)}
                   >
-                    {option.label} · {option.seconds}s
+                    {option.label.toLowerCase()} · {option.seconds}s
                   </button>
                 ))}
               </div>
             </div>
 
-            <div>
-              <label className="block text-sm mb-2" style={{ color: '#462c2d' }}>
-                Audience Descriptor (Optional)
+            <div className="mt-6">
+              <label className="block text-sm mb-2 lowercase" style={{ color: '#462c2d' }}>
+                audience descriptor (optional)
               </label>
               <input
                 value={audience}
                 onChange={(event) => setAudience(event.target.value)}
-                className="w-full rounded-xl border-2 px-4 py-3 text-sm"
+                className="w-full rounded-xl border-2 px-4 py-3 text-sm lowercase"
                 style={{ borderColor: '#462c2d', color: '#462c2d', backgroundColor: '#f8f4f2' }}
                 placeholder="e.g., for second-graders learning about the water cycle"
               />
             </div>
+
+            <button
+              type="button"
+              className="mt-6 px-6 py-3 rounded-full text-sm font-semibold disabled:opacity-50 lowercase"
+              style={{ backgroundColor: '#462c2d', color: '#f8f4f2' }}
+              onClick={handleGenerate}
+              disabled={isSubmitting || !prompt.trim()}
+            >
+              {isSubmitting ? 'generating…' : 'generate song + level'}
+            </button>
           </div>
-
-          <button
-            type="button"
-            className="mt-6 px-6 py-3 rounded-full text-sm font-semibold disabled:opacity-50"
-            style={{ backgroundColor: '#462c2d', color: '#f8f4f2' }}
-            onClick={handleGenerate}
-            disabled={isSubmitting || !prompt.trim()}
-          >
-            {isSubmitting ? 'Generating…' : 'Generate Song + Level'}
-          </button>
         </div>
-
-        <div className="rounded-3xl border-2 p-8 h-full" style={{ backgroundColor: '#fffdfb', borderColor: '#462c2d' }}>
-          <div className="text-lg font-semibold mb-4" style={{ color: '#462c2d' }}>
-            What Happens Next
+      ) : (
+        <div className="px-6 pb-20">
+          <div className="text-lg font-semibold mb-6 lowercase" style={{ color: '#f8f4f2' }}>
+            community creations
           </div>
-          <ol className="text-sm space-y-3" style={{ color: '#462c2d' }}>
-            <li>1. Your prompt guides lyrics, tempo, and choreography.</li>
-            <li>2. The audience descriptor tunes the mood of the track.</li>
-            <li>3. The system outputs a playable level with synced steps.</li>
-          </ol>
-        </div>
-      </div>
-
-      <div className="px-12 pb-20">
-        <div className="text-lg font-semibold mb-6" style={{ color: '#462c2d' }}>
-          Community Creations
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {COMMUNITY_SONGS.map((song) => (
-            <div key={song.id} className="rounded-2xl border-2 p-5" style={{ borderColor: '#462c2d', backgroundColor: '#fffdfb' }}>
-              <div className="text-base font-semibold" style={{ color: '#462c2d' }}>
-                {song.title}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {COMMUNITY_SONGS.map((song) => (
+              <div key={song.id} className="rounded-2xl border-2 p-5" style={{ borderColor: '#462c2d', backgroundColor: '#f8f4f2' }}>
+                <div className="text-base font-semibold lowercase" style={{ color: '#462c2d' }}>
+                  {song.title.toLowerCase()}
+                </div>
+                <div className="text-xs mt-2 lowercase" style={{ color: '#462c2d', opacity: 0.7 }}>
+                  by {song.creator.toLowerCase()} · {song.length}
+                </div>
+                <Link
+                  href="/play"
+                  className="inline-flex mt-4 px-4 py-2 rounded-full border-2 text-xs lowercase"
+                  style={{ borderColor: '#462c2d', color: '#462c2d' }}
+                >
+                  play this
+                </Link>
               </div>
-              <div className="text-xs mt-2" style={{ color: '#462c2d', opacity: 0.7 }}>
-                by {song.creator} · {song.length}
-              </div>
-              <Link
-                href="/play"
-                className="inline-flex mt-4 px-4 py-2 rounded-full border-2 text-xs"
-                style={{ borderColor: '#462c2d', color: '#462c2d' }}
-              >
-                Play This
-              </Link>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

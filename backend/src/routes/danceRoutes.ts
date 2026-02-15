@@ -15,6 +15,7 @@ router.post("/create", async (req: Request, res: Response) => {
     const finalResult = await startDanceProject(topic, mood, genre);
     res.json({ success: true, data: finalResult });
   } catch (err) {
+    console.error("[POST /api/dance/create] Pipeline failed:", err);
     const errorMessage = err instanceof Error ? err.message : "Unknown error";
     res.status(500).json({ error: errorMessage });
   }
